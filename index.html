@@ -513,7 +513,7 @@
             if (!credit) return;
 
             const installmentBs = (credit.installmentUsd * credit.bcvRate).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            const currentInstallmentNum = credit.totalInstallments - credit.remainingInstallments;
+            const paidParts = credit.totalInstallments - credit.remainingInstallments;
 
             let text = `📌 *DATOS DE PAGO MÓVIL*\n`;
             text += `----------------------------------\n`;
@@ -526,9 +526,10 @@
             text += `----------------------------------\n`;
             
             if (credit.remainingInstallments === 0) {
-                text += `🎉 *¡Felicidades!* Con este abono cancelas la totalidad de tu crédito (Parte ${credit.totalInstallments} de ${credit.totalInstallments}).`;
+                text += `🎉 *¡Felicidades!* Con este abono cancelas la totalidad de tu crédito (Parte ${paidParts} de ${credit.totalInstallments}).`;
             } else {
                 text += `ℹ️ *Resumen de Cuota:*\n`;
+                text += `🧾 *Parte a pagar:* ${paidParts + 1} de ${credit.totalInstallments}\n`;
                 text += `Abono correspondiente a parte de financiamiento.\n`;
                 text += `👉 *Te restan ${credit.remainingInstallments} parte(s)* por cancelar.`;
             }

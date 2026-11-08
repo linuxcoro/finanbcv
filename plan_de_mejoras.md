@@ -1,7 +1,7 @@
 # Plan de mejoras — FinanBCV
 
 **Fecha:** 2026-11-08 · **Estado global:** 🟨 en ejecución (pasos 1–3 de 5 hechos)
-**Archivo de la app:** `gestor_de_ventas_financiadas_bcv.html` (595 líneas, SPA de un solo archivo)
+**Archivo de la app:** `index.html` (602 líneas, SPA de un solo archivo)
 **Documentación:** `documentaci_n_de_la_aplicaci_n.md`
 
 > Este documento es el plan de trabajo **por pasos**. Los pasos 1–3 ya están ejecutados (ver Bitácora); los pasos 4–5 siguen pendientes. El **workflow de GitHub es deliberadamente el último**, por pedido del usuario. Al cerrar cada paso se marca el estado (`✅ hecho`), se actualiza la tabla y se añade una línea a la Bitácora.
@@ -34,7 +34,7 @@ Se considera terminado cuando:
 |---|------|--------|
 | 1 | Repositorio git y renombrar a `index.html` | ✅ hecho |
 | 2 | Mostrar la inicial pagada en la tarjeta del crédito | ✅ hecho |
-| 3 | Número de parte correcto en el mensaje de Pago Móvil | ⬜ pendiente |
+| 3 | Número de parte correcto en el mensaje de Pago Móvil | ✅ hecho |
 | 4 | Actualizar `documentaci_n_de_la_aplicaci_n.md` | ⬜ pendiente |
 | 5 | **Último:** workflow de GitHub Actions para el APK | ⬜ pendiente |
 
@@ -154,17 +154,17 @@ Se considera terminado cuando:
 - **Sintaxis del JavaScript inline** (el script está embebido en el HTML, no hay archivo .js aparte):
 
   ```bash
-  sed -n '/Lógica en JavaScript/,/<\/script>/p' index.html | sed '1d;$d' > /tmp/app.js && node --check /tmp/app.js
+  awk '/Lógica en JavaScript/{f=1;next} f && /^[[:space:]]*<\/script>/{exit} f && /^[[:space:]]*<script>/{next} f' index.html > /tmp/app.js && node --check /tmp/app.js
   ```
 
 - **Smoke manual en el navegador:** abrir `index.html`, revisar que la consola no tenga errores y recorrer el flujo completo:
   1. Guardar datos de Pago Móvil.
   2. Registrar un crédito de $100 a tasa 36,50 con 30 % de inicial y 2 partes.
-  3. "Abonar Cuota" → comprobar que el mensaje dice "Parte 1 de 2" y probar "Copiar Texto".
+  3. "Abonar Cuota" → comprobar que el mensaje dice "Parte a pagar: 2 de 2" (la siguiente parte) y probar "Copiar Texto".
   4. Segundo abono → "Parte 2 de 2" y estado "Pagado Total".
   5. Recargar la página y confirmar la persistencia de `finanbcv_credits`, `finanbcv_settings` y `finanbcv_theme`.
 - **Datos heredados:** probar con un crédito antiguo sin `initialPercent` en `localStorage` para validar el fallback.
-- **Grep de control:** `grep -rn "gestor_de_ventas_financiadas_bcv\|currentInstallmentNum" .` no debe devolver resultados (salvo esta bitácora histórica).
+- **Grep de control:** `grep -rn "gestor_de_ventas_financiadas_bcv\|currentInstallmentNum" .` no debe devolver resultados en código/documentación (solo pueden quedar referencias históricas en este mismo plan).
 
 ## 5. Riesgos y reversión
 
@@ -181,3 +181,4 @@ Se considera terminado cuando:
 | 2026-11-08 | — | Plan creado. Ningún paso ejecutado todavía; el repositorio sigue con `gestor_de_ventas_financiadas_bcv.html` y `documentaci_n_de_la_aplicaci_n.md`. |
 | 2026-11-08 | 1 | Repositorio git creado en rama `main` con commit inicial de los 3 archivos; rename con `git mv` de `gestor_de_ventas_financiadas_bcv.html` a `index.html`. Único HTML de la raíz y app sin rutas relativas. |
 | 2026-11-08 | 2 | `renderCredits()` muestra la celda "Inicial (X%)" con `$X (Bs Y)` junto a "Total Venta" (fallback 0 % para créditos heredados) y "Monto por Cuota" pasa a fila `col-span-2`. Verificado con arnés Node sobre el JS inline: $100 al 30 % → `$30.00 (Bs 1.095,00)`; sin `initialPercent` → `$0.00 (Bs 0,00)`. |
+| 2026-11-08 | 3 | `prepareShareMessage()` elimina la variable muerta `currentInstallmentNum` y calcula `paidParts`; el mensaje muestra `🧾 *Parte a pagar:* paidParts+1 de N` o `Parte N de N` al liquidar. Verificado: 3 partes con 1 abono → "Parte a pagar: 2 de 3" y "Te restan 2 parte(s)"; sin abonos → "1 de N"; liquidado → "Parte 3 de 3". Se corrigieron también el comando de extracción JS del §4 y el smoke para que coincidan con la numeración "Parte a pagar". |
