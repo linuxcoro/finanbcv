@@ -1,6 +1,6 @@
 # Plan de mejoras — FinanBCV
 
-**Fecha:** 2026-11-08 · **Estado global:** ✅ 5 de 5 pasos ejecutados en local (pendiente el push a GitHub)
+**Fecha:** 2026-11-08 · **Estado global:** ✅ 5 de 5 pasos ejecutados en local (pendiente el push a GitHub) · Historial de pagos: ✅ añadido como mejora posterior
 **Archivo de la app:** `index.html` (602 líneas, SPA de un solo archivo)
 **Documentación:** `documentaci_n_de_la_aplicaci_n.md`
 
@@ -186,3 +186,14 @@ Se considera terminado cuando:
 | 2026-11-08 | 3 | `prepareShareMessage()` elimina la variable muerta `currentInstallmentNum` y calcula `paidParts`; el mensaje muestra `🧾 *Parte a pagar:* paidParts+1 de N` o `Parte N de N` al liquidar. Verificado: 3 partes con 1 abono → "Parte a pagar: 2 de 3" y "Te restan 2 parte(s)"; sin abonos → "1 de N"; liquidado → "Parte 3 de 3". Se corrigieron también el comando de extracción JS del §4 y el smoke para que coincidan con la numeración "Parte a pagar". |
 | 2026-11-08 | 4 | `documentaci_n_de_la_aplicaci_n.md` actualizada: nombre `index.html`, características de la inicial en la tarjeta y del comprobante automático al abonar, estructura del repositorio, guía APK reescrita (workflow, disparadores, artifact en Actions, instalación por fuentes desconocidas o `adb`), limitación de CDN y referencia al plan como roadmap. Verificado: sin referencias al nombre viejo. |
 | 2026-11-08 | 5 | `capacitor.config.json` y `.github/workflows/build-apk.yml` creados: disparadores `push` a `main` + `workflow_dispatch`, `permissions: contents: read`, Ubuntu + Node 20 + Java 17 (temurin) + Android SDK, Capacitor 6 con versiones fijadas, copia de `index.html` a `www/`, `assembleDebug` y artifact `FinanBCV-apk`. Validado en local con PyYAML y comprobación de estructura (24/24 PASS, sin secretos). **Pendiente solo el push** (`git remote add origin …` + `git push -u origin main`). |
+| 2026-11-08 | Post-plan | **Historial de pagos por crédito:** campo aditivo `payments` en `finanbcv_credits`, botón "Historial de pagos (N)" en cada tarjeta y modal con la inicial + abonos (fecha, parte, $ y Bs), compatible con créditos heredados (resumen "pagos anteriores sin detalle"). Documentación actualizada. Commit `feat: mostrar historial de pagos por crédito`. |
+
+## 7. Mejora posterior — Historial de pagos por crédito
+
+**Estado:** ✅ hecho (mejora posterior a los pasos 1–5; no reabre el plan original).
+
+- Nuevo campo **aditivo** `payments` en cada crédito de `localStorage.finanbcv_credits`; los créditos antiguos se leen sin migración y muestran su inicial más un resumen "pagos anteriores sin detalle".
+- Botón **"Historial de pagos (N)"** en cada tarjeta → modal con la inicial (si existe) y cada abono, con fecha, número de parte y montos en `$` y `Bs`, además del total pagado.
+- El flujo de **"Abonar Cuota" no cambia**: sigue registrando el abono y abriendo el comprobante de Pago Móvil; el historial se actualiza solo.
+- Documentación actualizada en `documentaci_n_de_la_aplicaci_n.md`.
+- Commit: `feat: mostrar historial de pagos por crédito`.
