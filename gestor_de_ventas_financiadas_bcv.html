@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Ventas Financiadas - Tasa BCV</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.5);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full flex flex-col transition-colors duration-200">
+
+    <!-- Header Principal -->
+    <header class="sticky top-0 z-40 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 px-4 py-3">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <div class="p-2 bg-brand-500 text-white rounded-xl shadow-md shadow-brand-500/20">
+                    <i data-lucide="calculator" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">FinanBCV</h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Control de Créditos y Pago Móvil</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <!-- Botón Ajustes -->
+                <button onclick="toggleModal('modalSettings')" class="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Datos de Pago Móvil">
+                    <i data-lucide="qr-code" class="w-5 h-5"></i>
+                </button>
+                <!-- Botón Modo Oscuro -->
+                <button id="themeToggleBtn" onclick="toggleDarkMode()" class="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Cambiar Tema">
+                    <i id="themeIcon" data-lucide="moon" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-4 space-y-6">
+
+        <!-- Banner de Alerta Pago Móvil si no está configurado -->
+        <div id="alertNoSettings" class="hidden bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 rounded-2xl p-4 flex items-start space-x-3 text-amber-800 dark:text-amber-200">
+            <i data-lucide="alert-triangle" class="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400"></i>
+            <div class="flex-1 text-sm">
+                <span class="font-semibold">¡Atención!</span> No has configurado tus datos de Pago Móvil.
+                <button onclick="toggleModal('modalSettings')" class="underline font-bold hover:text-amber-900 dark:hover:text-amber-100 ml-1">Configurar ahora</button>
+            </div>
+        </div>
+
+        <!-- Formulario Nueva Venta / Calculadora -->
+        <section class="bg-white dark:bg-slate-800 rounded-3xl p-5 shadow-sm border border-slate-200/80 dark:border-slate-700 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="badge-dollar-sign" class="w-5 h-5 text-brand-600 dark:text-brand-500"></i>
+                    <h2 class="font-semibold text-base">Nueva Venta Financiada</h2>
+                </div>
+                <span class="text-xs bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full text-slate-600 dark:text-slate-300 font-medium">Tasa BCV</span>
+            </div>
+
+            <form id="calcForm" onsubmit="saveCredit(event)" class="space-y-4">
+                <!-- Cliente -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Nombre del Cliente / Teléfono</label>
+                    <div class="relative">
+                        <i data-lucide="user" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
+                        <input type="text" id="clientName" required placeholder="Ej: María Pérez (0412-1234567)" class="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none transition">
+                    </div>
+                </div>
+
+                <!-- Fila de Monto y Tasa -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Monto Total ($ USD)</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2.5 text-xs font-semibold text-slate-400">$</span>
+                            <input type="number" step="0.01" min="0.01" id="totalUsd" required placeholder="0.00" oninput="calculateOutputs()" class="w-full pl-7 pr-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-brand-500 outline-none transition">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Tasa BCV (Bs/$)</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2.5 text-xs font-semibold text-slate-400">Bs</span>
+                            <input type="number" step="0.01" min="0.01" id="bcvRate" required placeholder="0.00" oninput="calculateOutputs()" class="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-brand-500 outline-none transition">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fila de Inicial y Cuotas -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">% Pago Inicial</label>
+                        <div class="relative">
+                            <input type="number" step="1" min="0" max="99" id="initialPercent" value="30" oninput="calculateOutputs()" class="w-full pr-7 pl-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-brand-500 outline-none transition">
+                            <span class="absolute right-3 top-2.5 text-xs font-semibold text-slate-400">%</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Partes / Cuotas</label>
+                        <select id="totalInstallments" onchange="calculateOutputs()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-brand-500 outline-none transition">
+                            <option value="1">1 Parte</option>
+                            <option value="2" selected>2 Partes</option>
+                            <option value="3">3 Partes</option>
+                            <option value="4">4 Partes</option>
+                            <option value="6">6 Partes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Resumen de Cálculos (Calculado en Vivo) -->
+                <div class="p-4 bg-slate-100/70 dark:bg-slate-900/70 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 space-y-2 text-xs">
+                    <div class="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                        <span>Monto Inicial (<span id="txtInitialPercent">30</span>%):</span>
+                        <span class="font-bold text-slate-900 dark:text-slate-100" id="resInitial">$0.00 <span class="font-normal text-slate-500">(Bs 0.00)</span></span>
+                    </div>
+                    <div class="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                        <span>Saldo Restante a Financiar:</span>
+                        <span class="font-bold text-slate-900 dark:text-slate-100" id="resRemainingUsd">$0.00 <span class="font-normal text-slate-500">(Bs 0.00)</span></span>
+                    </div>
+                    <div class="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center font-bold text-sm text-brand-600 dark:text-brand-400">
+                        <span>Monto por cada cuota:</span>
+                        <span id="resInstallmentAmount">$0.00 <span class="text-xs font-normal text-slate-500 dark:text-slate-400">(Bs 0.00)</span></span>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-lg shadow-brand-500/25 active:scale-[0.99] transition flex items-center justify-center space-x-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Registrar Crédito</span>
+                </button>
+            </form>
+        </section>
+
+        <!-- Lista de Clientes con Créditos Activos -->
+        <section class="space-y-3">
+            <div class="flex items-center justify-between">
+                <h3 class="font-semibold text-base flex items-center space-x-2">
+                    <i data-lucide="users" class="w-4 h-4 text-slate-500"></i>
+                    <span>Créditos Activos</span>
+                </h3>
+                <span id="creditsCount" class="text-xs bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold px-2 py-0.5 rounded-full">0</span>
+            </div>
+
+            <div id="creditsList" class="space-y-3">
+                <!-- Se llena dinámicamente con JavaScript -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal: Configuración de Pago Móvil -->
+    <div id="modalSettings" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
+                <h3 class="font-bold text-base flex items-center space-x-2">
+                    <i data-lucide="qr-code" class="w-5 h-5 text-brand-600"></i>
+                    <span>Datos de Pago Móvil</span>
+                </h3>
+                <button onclick="toggleModal('modalSettings')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="pmForm" onsubmit="saveSettings(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Banco Destino</label>
+                    <input type="text" id="pmBank" required placeholder="Ej: Banesco (0134)" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Cédula / RIF</label>
+                    <input type="text" id="pmId" required placeholder="Ej: V-12345678" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Teléfono Registrado</label>
+                    <input type="tel" id="pmPhone" required placeholder="Ej: 0414-1234567" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-md transition">
+                        Guardar Configuración
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Compartir Pago Móvil -->
+    <div id="modalShare" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
+                <h3 class="font-bold text-base flex items-center space-x-2">
+                    <i data-lucide="share-2" class="w-5 h-5 text-brand-600"></i>
+                    <span>Salida para WhatsApp</span>
+                </h3>
+                <button onclick="toggleModal('modalShare')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Previsualización del Texto -->
+            <div class="space-y-1">
+                <label class="block text-xs font-medium text-slate-500 dark:text-slate-400">Texto formateado a enviar:</label>
+                <div id="sharePreview" class="p-3 bg-slate-100 dark:bg-slate-900 rounded-2xl text-xs font-mono whitespace-pre-wrap border border-slate-200 dark:border-slate-700 max-h-56 overflow-y-auto text-slate-700 dark:text-slate-300">
+                    <!-- Texto generado dinámicamente -->
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 pt-2">
+                <button onclick="copyToClipboard()" class="py-2.5 px-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 font-semibold text-xs rounded-xl transition flex items-center justify-center space-x-1.5">
+                    <i data-lucide="copy" class="w-4 h-4"></i>
+                    <span>Copiar Texto</span>
+                </button>
+                <button onclick="executeNativeShare()" class="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md transition flex items-center justify-center space-x-1.5">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                    <span>Compartir App</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast de Notificaciones -->
+    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-2.5 rounded-2xl shadow-xl text-xs font-semibold tracking-wide opacity-0 transition-opacity duration-300 pointer-events-none z-50 flex items-center space-x-2">
+        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 dark:text-emerald-600"></i>
+        <span id="toastMsg">Notificación</span>
+    </div>
+
+    <!-- Lógica en JavaScript -->
+    <script>
+        // Variables de Estado
+        let credits = [];
+        let settings = { bank: '', id: '', phone: '' };
+        let currentShareText = '';
+
+        // Inicialización al cargar la ventana
+        window.onload = function() {
+            lucide.createIcons();
+            loadSettings();
+            loadTheme();
+            loadCredits();
+            calculateOutputs();
+        };
+
+        // --- MÓDULO MODO OSCURO ---
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('finanbcv_theme');
+            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                updateThemeIcon(true);
+            } else {
+                document.documentElement.classList.remove('dark');
+                updateThemeIcon(false);
+            }
+        }
+
+        function toggleDarkMode() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('finanbcv_theme', isDark ? 'dark' : 'light');
+            updateThemeIcon(isDark);
+        }
+
+        function updateThemeIcon(isDark) {
+            const iconContainer = document.getElementById('themeIcon');
+            iconContainer.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            lucide.createIcons();
+        }
+
+        // --- MÓDULO AJUSTES / PAGO MÓVIL ---
+        function loadSettings() {
+            const saved = localStorage.getItem('finanbcv_settings');
+            if (saved) {
+                settings = JSON.parse(saved);
+                document.getElementById('pmBank').value = settings.bank || '';
+                document.getElementById('pmId').value = settings.id || '';
+                document.getElementById('pmPhone').value = settings.phone || '';
+                document.getElementById('alertNoSettings').classList.add('hidden');
+            } else {
+                document.getElementById('alertNoSettings').classList.remove('hidden');
+            }
+        }
+
+        function saveSettings(e) {
+            e.preventDefault();
+            settings = {
+                bank: document.getElementById('pmBank').value.trim(),
+                id: document.getElementById('pmId').value.trim(),
+                phone: document.getElementById('pmPhone').value.trim()
+            };
+            localStorage.setItem('finanbcv_settings', JSON.stringify(settings));
+            document.getElementById('alertNoSettings').classList.add('hidden');
+            toggleModal('modalSettings');
+            showToast('Datos de Pago Móvil guardados');
+        }
+
+        // --- MÓDULO CALCULADORA Y CRÉDITOS ---
+        function calculateOutputs() {
+            const totalUsd = parseFloat(document.getElementById('totalUsd').value) || 0;
+            const bcvRate = parseFloat(document.getElementById('bcvRate').value) || 0;
+            const initialPercent = parseFloat(document.getElementById('initialPercent').value) || 0;
+            const totalInstallments = parseInt(document.getElementById('totalInstallments').value) || 1;
+
+            document.getElementById('txtInitialPercent').innerText = initialPercent;
+
+            const initialUsd = totalUsd * (initialPercent / 100);
+            const initialBs = initialUsd * bcvRate;
+
+            const remainingUsd = totalUsd - initialUsd;
+            const remainingBs = remainingUsd * bcvRate;
+
+            const installmentUsd = totalInstallments > 0 ? (remainingUsd / totalInstallments) : 0;
+            const installmentBs = installmentUsd * bcvRate;
+
+            document.getElementById('resInitial').innerHTML = `$${initialUsd.toFixed(2)} <span class="font-normal text-slate-500">(Bs ${initialBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})})</span>`;
+            document.getElementById('resRemainingUsd').innerHTML = `$${remainingUsd.toFixed(2)} <span class="font-normal text-slate-500">(Bs ${remainingBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})})</span>`;
+            document.getElementById('resInstallmentAmount').innerHTML = `$${installmentUsd.toFixed(2)} <span class="text-xs font-normal text-slate-500 dark:text-slate-400">(Bs ${installmentBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})})</span>`;
+
+            return { totalUsd, bcvRate, initialPercent, totalInstallments, initialUsd, remainingUsd, installmentUsd, installmentBs };
+        }
+
+        function saveCredit(e) {
+            e.preventDefault();
+            const clientName = document.getElementById('clientName').value.trim();
+            const calc = calculateOutputs();
+
+            if (calc.totalUsd <= 0 || calc.bcvRate <= 0) {
+                showToast('Ingresa montos válidos');
+                return;
+            }
+
+            const newCredit = {
+                id: Date.now(),
+                clientName,
+                totalUsd: calc.totalUsd,
+                bcvRate: calc.bcvRate,
+                initialPercent: calc.initialPercent,
+                totalInstallments: calc.totalInstallments,
+                remainingInstallments: calc.totalInstallments, // Inicia con todas las cuotas pendientes
+                installmentUsd: calc.installmentUsd,
+                createdAt: new Date().toLocaleDateString('es-VE')
+            };
+
+            credits.unshift(newCredit);
+            persistCredits();
+            renderCredits();
+
+            // Reset Form
+            document.getElementById('calcForm').reset();
+            document.getElementById('initialPercent').value = 30;
+            calculateOutputs();
+            showToast('Crédito registrado con éxito');
+        }
+
+        function loadCredits() {
+            const saved = localStorage.getItem('finanbcv_credits');
+            if (saved) {
+                credits = JSON.parse(saved);
+            }
+            renderCredits();
+        }
+
+        function persistCredits() {
+            localStorage.setItem('finanbcv_credits', JSON.stringify(credits));
+        }
+
+        function renderCredits() {
+            const listEl = document.getElementById('creditsList');
+            document.getElementById('creditsCount').innerText = credits.length;
+
+            if (credits.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-center py-8 bg-white dark:bg-slate-800 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700">
+                        <i data-lucide="inbox" class="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600 mb-2"></i>
+                        <p class="text-sm font-medium text-slate-500 dark:text-slate-400">No hay créditos activos registrados</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            listEl.innerHTML = credits.map(credit => {
+                const paidInstallments = credit.totalInstallments - credit.remainingInstallments;
+                const progressPercent = Math.round((paidInstallments / credit.totalInstallments) * 100);
+                const currentBsRate = credit.installmentUsd * credit.bcvRate;
+
+                return `
+                    <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 shadow-sm border border-slate-200/80 dark:border-slate-700 space-y-3">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h4 class="font-bold text-base text-slate-900 dark:text-slate-100">${escapeHtml(credit.clientName)}</h4>
+                                <p class="text-xs text-slate-400">Registrado el ${credit.createdAt} • Tasa: Bs ${credit.bcvRate.toFixed(2)}</p>
+                            </div>
+                            <span class="text-xs font-semibold px-2.5 py-1 rounded-full ${credit.remainingInstallments === 0 ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'}">
+                                ${credit.remainingInstallments === 0 ? 'Pagado Total' : `${credit.remainingInstallments} de ${credit.totalInstallments} partes restan`}
+                            </span>
+                        </div>
+
+                        <!-- Barra de Progreso -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs text-slate-500">
+                                <span>Progreso de pago</span>
+                                <span class="font-semibold">${progressPercent}%</span>
+                            </div>
+                            <div class="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div class="h-full bg-brand-500 rounded-full transition-all duration-300" style="width: ${progressPercent}%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Desglose Financiero -->
+                        <div class="grid grid-cols-2 gap-2 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-2xl text-xs">
+                            <div>
+                                <span class="text-slate-400 block">Total Venta:</span>
+                                <span class="font-semibold text-slate-700 dark:text-slate-300">$${credit.totalUsd.toFixed(2)}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 block">Monto por Cuota:</span>
+                                <span class="font-bold text-brand-600 dark:text-brand-400">$${credit.installmentUsd.toFixed(2)} (Bs ${currentBsRate.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})})</span>
+                            </div>
+                        </div>
+
+                        <!-- Acciones -->
+                        <div class="flex items-center justify-between pt-1 gap-2">
+                            <button onclick="registerPayment(${credit.id})" ${credit.remainingInstallments === 0 ? 'disabled' : ''} class="flex-1 py-2 px-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-40 disabled:pointer-events-none text-slate-800 dark:text-slate-200 font-medium text-xs rounded-xl transition flex items-center justify-center space-x-1">
+                                <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-500"></i>
+                                <span>Abonar Cuota</span>
+                            </button>
+                            
+                            <button onclick="prepareShareMessage(${credit.id})" class="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs rounded-xl shadow-sm transition flex items-center justify-center space-x-1">
+                                <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+                                <span>Pago Móvil</span>
+                            </button>
+
+                            <button onclick="deleteCredit(${credit.id})" class="p-2 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-xl transition" title="Eliminar Crédito">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function registerPayment(id) {
+            const credit = credits.find(c => c.id === id);
+            if (credit && credit.remainingInstallments > 0) {
+                credit.remainingInstallments -= 1;
+                persistCredits();
+                renderCredits();
+                showToast(`Abono registrado para ${credit.clientName}`);
+                // Abre de una vez la ventana de compartir
+                prepareShareMessage(id);
+            }
+        }
+
+        function deleteCredit(id) {
+            if (confirm('¿Deseas eliminar o liquidar este registro de crédito?')) {
+                credits = credits.filter(c => c.id !== id);
+                persistCredits();
+                renderCredits();
+                showToast('Crédito eliminado');
+            }
+        }
+
+        // --- MÓDULO GENERADOR Y SALIDA DE PAGO MÓVIL ---
+        function prepareShareMessage(id) {
+            if (!settings.bank || !settings.id || !settings.phone) {
+                showToast('Primero configura tus datos de Pago Móvil');
+                toggleModal('modalSettings');
+                return;
+            }
+
+            const credit = credits.find(c => c.id === id);
+            if (!credit) return;
+
+            const installmentBs = (credit.installmentUsd * credit.bcvRate).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            const currentInstallmentNum = credit.totalInstallments - credit.remainingInstallments;
+
+            let text = `📌 *DATOS DE PAGO MÓVIL*\n`;
+            text += `----------------------------------\n`;
+            text += `🏦 *Banco:* ${settings.bank}\n`;
+            text += `🪪 *Cédula/RIF:* ${settings.id}\n`;
+            text += `📱 *Teléfono:* ${settings.phone}\n`;
+            text += `----------------------------------\n`;
+            text += `💵 *Monto a Pagar:* Bs. ${installmentBs}\n`;
+            text += `📊 *Tasa BCV:* Bs. ${credit.bcvRate.toFixed(2)}\n`;
+            text += `----------------------------------\n`;
+            
+            if (credit.remainingInstallments === 0) {
+                text += `🎉 *¡Felicidades!* Con este abono cancelas la totalidad de tu crédito (Parte ${credit.totalInstallments} de ${credit.totalInstallments}).`;
+            } else {
+                text += `ℹ️ *Resumen de Cuota:*\n`;
+                text += `Abono correspondiente a parte de financiamiento.\n`;
+                text += `👉 *Te restan ${credit.remainingInstallments} parte(s)* por cancelar.`;
+            }
+
+            currentShareText = text;
+            document.getElementById('sharePreview').innerText = text;
+            toggleModal('modalShare');
+        }
+
+        function copyToClipboard() {
+            if (!currentShareText) return;
+            
+            // Método robusto para iframe/web browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = currentShareText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('¡Texto copiado al portapapeles!');
+            } catch (err) {
+                showToast('Error al copiar el texto');
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function executeNativeShare() {
+            if (!currentShareText) return;
+
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Pago Móvil - FinanBCV',
+                    text: currentShareText
+                }).catch(() => {
+                    // Si cancela la acción nativa no muestra error estricto
+                });
+            } else {
+                copyToClipboard();
+                showToast('Web Share no disponible. Texto copiado.');
+            }
+        }
+
+        // --- UTILIDADES ---
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.toggle('hidden');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = message;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 2500);
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>"']/g, function(m) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[m];
+            });
+        }
+    </script>
+</body>
+</html>
