@@ -1,6 +1,6 @@
 # Plan de mejoras — FinanBCV
 
-**Fecha:** 2026-11-08 · **Estado global:** ✅ 5 de 5 pasos ejecutados en local (pendiente el push a GitHub) · Historial de pagos: ✅ añadido como mejora posterior
+**Fecha:** 2026-11-08 · **Estado global:** ✅ 5 de 5 pasos ejecutados en local (pendiente el push a GitHub) · Historial de pagos: ✅ añadido como mejora posterior · Pago inicial: ✅ eliminado
 **Archivo de la app:** `index.html` (602 líneas, SPA de un solo archivo)
 **Documentación:** `documentaci_n_de_la_aplicaci_n.md`
 
@@ -187,7 +187,8 @@ Se considera terminado cuando:
 | 2026-11-08 | 4 | `documentaci_n_de_la_aplicaci_n.md` actualizada: nombre `index.html`, características de la inicial en la tarjeta y del comprobante automático al abonar, estructura del repositorio, guía APK reescrita (workflow, disparadores, artifact en Actions, instalación por fuentes desconocidas o `adb`), limitación de CDN y referencia al plan como roadmap. Verificado: sin referencias al nombre viejo. |
 | 2026-11-08 | 5 | `capacitor.config.json` y `.github/workflows/build-apk.yml` creados: disparadores `push` a `main` + `workflow_dispatch`, `permissions: contents: read`, Ubuntu + Node 20 + Java 17 (temurin) + Android SDK, Capacitor 6 con versiones fijadas, copia de `index.html` a `www/`, `assembleDebug` y artifact `FinanBCV-apk`. Validado en local con PyYAML y comprobación de estructura (24/24 PASS, sin secretos). **Pendiente solo el push** (`git remote add origin …` + `git push -u origin main`). |
 | 2026-11-08 | Post-plan | **Historial de pagos por crédito:** campo aditivo `payments` en `finanbcv_credits`, botón "Historial de pagos (N)" en cada tarjeta y modal con la inicial + abonos (fecha, parte, $ y Bs), compatible con créditos heredados (resumen "pagos anteriores sin detalle"). Documentación actualizada. Commit `feat: mostrar historial de pagos por crédito`. |
-| 2026-11-08 | Post-plan | Se quitó la inicial del historial de pagos: ahora solo lista abonos de cuota y el total mostrado es el de cuotas. El `initialPercent` sigue visible en la tarjeta. Documentación actualizada. Commit `fix: excluir la inicial del historial de pagos`. |
+| 2026-11-08 | Post-plan | Se quitó la inicial del historial de pagos: ahora solo lista abonos de cuota y el total mostrado es el de cuotas. En ese momento la tarjeta aún mostraba la inicial. Documentación actualizada. Commit `fix: excluir la inicial del historial de pagos`. |
+| 2026-11-08 | Post-plan | Se eliminó el **% de pago inicial**: sin campo en el formulario, sin "Monto Inicial" en el resumen y sin celda "Inicial (X%)" en la tarjeta; el cálculo ahora financia el monto total (`cuota = totalUsd / partes`) y los créditos nuevos no guardan `initialPercent` (los antiguos se leen igual). Documentación actualizada. Commit `refactor: eliminar el % de pago inicial`. |
 
 ## 7. Mejora posterior — Historial de pagos por crédito
 
@@ -198,3 +199,14 @@ Se considera terminado cuando:
 - El flujo de **"Abonar Cuota" no cambia**: sigue registrando el abono y abriendo el comprobante de Pago Móvil; el historial se actualiza solo.
 - Documentación actualizada en `documentaci_n_de_la_aplicaci_n.md`.
 - Commit: `feat: mostrar historial de pagos por crédito`.
+
+## 8. Mejora posterior — Eliminación del % de pago inicial
+
+**Estado:** ✅ hecho (mejora posterior a los pasos 1–5; reemplaza para créditos nuevos lo añadido en el Paso 2).
+
+- Se eliminó el campo **"% Pago Inicial"** del formulario, la fila "Monto Inicial" del resumen en vivo y la celda "Inicial (X%)" de la tarjeta de crédito.
+- El cálculo ahora financia el **monto total**: `cuota = totalUsd / partes` (sin descontar inicial). El resumen en vivo muestra "Total a Financiar".
+- Los créditos nuevos ya no guardan `initialPercent`; los créditos antiguos que lo tengan siguen usando y mostrando su monto por cuota ya calculado (el campo se ignora).
+- El historial de pagos (solo abonos de cuota) no cambia.
+- Documentación actualizada en `documentaci_n_de_la_aplicaci_n.md`.
+- Commit: `refactor: eliminar el % de pago inicial`.

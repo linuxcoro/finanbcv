@@ -2,14 +2,13 @@
 
 **FinanBCV** es una aplicación web progresiva y liviana (Single-Page Application) diseñada para comerciantes que venden productos en dólares y permiten financiamiento por cuotas calculadas a la tasa oficial del Banco Central de Venezuela (BCV). 
 
-La aplicación permite llevar el control de abonos de clientes, calcular desgloses de iniciales y cuotas en tiempo real, y generar comprobantes de Pago Móvil listos para compartir por WhatsApp o cualquier app de mensajería nativa.
+La aplicación permite llevar el control de abonos de clientes, calcular el monto de las cuotas en tiempo real, y generar comprobantes de Pago Móvil listos para compartir por WhatsApp o cualquier app de mensajería nativa.
 
 ---
 
 ## 🚀 Características Principales
 
-* **Cálculo Automático a Tasa BCV:** Convierte el monto en dólares a bolívares según la tasa ingresada, descuenta la inicial (%) y divide el saldo exacto en las cuotas acordadas.
-* **Inicial Pagada en la Tarjeta:** cada crédito registrado muestra el monto de la inicial pagada en dólares y bolívares (según el % configurado), junto al total de la venta y el monto por cuota.
+* **Cálculo Automático a Tasa BCV:** Convierte el monto en dólares a bolívares según la tasa ingresada y divide el monto exacto en las cuotas acordadas.
 * **Integración Nativa de Pago Móvil:** Configura tus datos bancarios una sola vez (Banco, Cédula/RIF y Teléfono) y genera plantillas de cobro personalizadas con 1 clic, indicando la parte que corresponde pagar (por ejemplo, "Parte 2 de 3").
 * **Comprobante al Instante:** al presionar **"Abonar Cuota"** se descuenta la parte pendiente, la tarjeta actualiza su progreso y se abre automáticamente el comprobante de Pago Móvil con la siguiente parte a pagar.
 * **Historial de Pagos por Crédito:** cada tarjeta abre una ventana con todos los abonos de cuota del crédito, con fecha, número de parte y montos en dólares y bolívares, además del total abonado en cuotas.
@@ -57,7 +56,6 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
   "clientName": "Juan Pérez (0412-1112233)",
   "totalUsd": 100.00,
   "bcvRate": 36.50,
-  "initialPercent": 30,
   "totalInstallments": 3,
   "remainingInstallments": 2,
   "installmentUsd": 23.33,
@@ -75,6 +73,8 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
   ]
 }
 ```
+
+> Nota: los créditos guardados por versiones anteriores pueden conservar `initialPercent`; la app ya no lo usa ni lo muestra (mantiene el monto por cuota que se calculó al registrarlos).
 
 ### Objeto Ajustes Pago Móvil (`settings`)
 ```json
@@ -95,11 +95,11 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 2. **Registrar Venta:**
    * Introduce el nombre y teléfono del cliente.
    * Ingresa el total en USD y la tasa BCV del día.
-   * Define el porcentaje de inicial y el número de partes.
+   * Define el número de partes.
    * Presiona **"Registrar Crédito"**.
 3. **Abonar y Compartir:**
    * Cuando el cliente realice un pago, presiona **"Abonar Cuota"** en su tarjeta.
-   * El sistema descontará una parte restante, actualizará la tarjeta (inicial, total y cuota) y abrirá el comprobante con la siguiente parte a pagar (por ejemplo, "Parte 2 de 3").
+   * El sistema descontará una parte restante, actualizará la tarjeta (total y cuota) y abrirá el comprobante con la siguiente parte a pagar (por ejemplo, "Parte 2 de 3").
    * Para consultar el detalle, pulsa **"Historial de pagos (N)"** en la tarjeta: verás cada abono con fecha, número de parte y montos en $ y Bs.
    * Presiona **"Copiar Texto"** o **"Compartir App"** para enviarlo por WhatsApp u otra aplicación.
 
