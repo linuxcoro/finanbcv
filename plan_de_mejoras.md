@@ -1,10 +1,10 @@
 # Plan de mejoras — FinanBCV
 
-**Fecha:** 2026-11-08 · **Estado global:** 🟨 en ejecución (pasos 1–3 de 5 hechos)
+**Fecha:** 2026-11-08 · **Estado global:** 🟨 en ejecución (pasos 1–4 de 5 hechos)
 **Archivo de la app:** `index.html` (602 líneas, SPA de un solo archivo)
 **Documentación:** `documentaci_n_de_la_aplicaci_n.md`
 
-> Este documento es el plan de trabajo **por pasos**. Los pasos 1–3 ya están ejecutados (ver Bitácora); los pasos 4–5 siguen pendientes. El **workflow de GitHub es deliberadamente el último**, por pedido del usuario. Al cerrar cada paso se marca el estado (`✅ hecho`), se actualiza la tabla y se añade una línea a la Bitácora.
+> Este documento es el plan de trabajo **por pasos**. Los pasos 1–4 ya están ejecutados (ver Bitácora); el **paso 5 (workflow de GitHub)** es deliberadamente el último, por pedido del usuario. Al cerrar cada paso se marca el estado (`✅ hecho`), se actualiza la tabla y se añade una línea a la Bitácora.
 
 ---
 
@@ -20,12 +20,12 @@ Se considera terminado cuando:
 4. La documentación refleja la realidad: nombre del archivo, funcionalidad y workflow existente.
 5. Existe `.github/workflows/build-apk.yml` que produce un **APK debug** descargable como artifact, validado sintácticamente en local.
 
-## 2. Hechos verificados (base del plan)
+## 2. Hechos verificados (base del plan — estado previo a la ejecución)
 
-- El proyecto **no es un repositorio git** y no tiene carpeta `.github/`.
+- El proyecto **no era un repositorio git** y no tenía carpeta `.github/` (el repositorio se creó en el Paso 1; `.github/` se añade en el Paso 5).
 - La app **no referencia recursos locales**: Tailwind, Lucide y las fuentes se cargan por CDN, así que renombrar el archivo HTML no rompe ninguna ruta.
 - `registerPayment()` descuenta `remainingInstallments` y abre automáticamente el modal de compartir; el mensaje ya distingue un crédito liquidado.
-- `initialPercent` **sí se guarda** en `localStorage.finanbcv_credits`, pero **no se muestra** en la tarjeta del crédito.
+- `initialPercent` **sí se guardaba** en `localStorage.finanbcv_credits`, pero **no se mostraba** en la tarjeta del crédito (se muestra desde el Paso 2).
 - Herramientas disponibles: node v24.22.2, Python 3.10 con PyYAML 6.0.3, git 2.34.1 con identidad configurada. **No** hay `gh` ni `actionlint`/`yamllint`.
 
 ## 3. Tabla de pasos
@@ -35,7 +35,7 @@ Se considera terminado cuando:
 | 1 | Repositorio git y renombrar a `index.html` | ✅ hecho |
 | 2 | Mostrar la inicial pagada en la tarjeta del crédito | ✅ hecho |
 | 3 | Número de parte correcto en el mensaje de Pago Móvil | ✅ hecho |
-| 4 | Actualizar `documentaci_n_de_la_aplicaci_n.md` | ⬜ pendiente |
+| 4 | Actualizar `documentaci_n_de_la_aplicaci_n.md` | ✅ hecho |
 | 5 | **Último:** workflow de GitHub Actions para el APK | ⬜ pendiente |
 
 ---
@@ -182,3 +182,4 @@ Se considera terminado cuando:
 | 2026-11-08 | 1 | Repositorio git creado en rama `main` con commit inicial de los 3 archivos; rename con `git mv` de `gestor_de_ventas_financiadas_bcv.html` a `index.html`. Único HTML de la raíz y app sin rutas relativas. |
 | 2026-11-08 | 2 | `renderCredits()` muestra la celda "Inicial (X%)" con `$X (Bs Y)` junto a "Total Venta" (fallback 0 % para créditos heredados) y "Monto por Cuota" pasa a fila `col-span-2`. Verificado con arnés Node sobre el JS inline: $100 al 30 % → `$30.00 (Bs 1.095,00)`; sin `initialPercent` → `$0.00 (Bs 0,00)`. |
 | 2026-11-08 | 3 | `prepareShareMessage()` elimina la variable muerta `currentInstallmentNum` y calcula `paidParts`; el mensaje muestra `🧾 *Parte a pagar:* paidParts+1 de N` o `Parte N de N` al liquidar. Verificado: 3 partes con 1 abono → "Parte a pagar: 2 de 3" y "Te restan 2 parte(s)"; sin abonos → "1 de N"; liquidado → "Parte 3 de 3". Se corrigieron también el comando de extracción JS del §4 y el smoke para que coincidan con la numeración "Parte a pagar". |
+| 2026-11-08 | 4 | `documentaci_n_de_la_aplicaci_n.md` actualizada: nombre `index.html`, características de la inicial en la tarjeta y del comprobante automático al abonar, estructura del repositorio, guía APK reescrita (workflow, disparadores, artifact en Actions, instalación por fuentes desconocidas o `adb`), limitación de CDN y referencia al plan como roadmap. Verificado: sin referencias al nombre viejo. |
