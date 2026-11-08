@@ -1,10 +1,10 @@
 # Plan de mejoras — FinanBCV
 
-**Fecha:** 2026-11-08 · **Estado global:** 🟨 en ejecución (pasos 1–4 de 5 hechos)
+**Fecha:** 2026-11-08 · **Estado global:** ✅ 5 de 5 pasos ejecutados en local (pendiente el push a GitHub)
 **Archivo de la app:** `index.html` (602 líneas, SPA de un solo archivo)
 **Documentación:** `documentaci_n_de_la_aplicaci_n.md`
 
-> Este documento es el plan de trabajo **por pasos**. Los pasos 1–4 ya están ejecutados (ver Bitácora); el **paso 5 (workflow de GitHub)** es deliberadamente el último, por pedido del usuario. Al cerrar cada paso se marca el estado (`✅ hecho`), se actualiza la tabla y se añade una línea a la Bitácora.
+> Este documento es el plan de trabajo **por pasos**. Los pasos 1–5 están ejecutados en local (ver Bitácora); solo queda el `git push` a GitHub, que requiere las credenciales del usuario. El **workflow de GitHub** fue deliberadamente el último, por pedido del usuario. Al cerrar cada paso se marca el estado (`✅ hecho`), se actualiza la tabla y se añade una línea a la Bitácora.
 
 ---
 
@@ -36,7 +36,7 @@ Se considera terminado cuando:
 | 2 | Mostrar la inicial pagada en la tarjeta del crédito | ✅ hecho |
 | 3 | Número de parte correcto en el mensaje de Pago Móvil | ✅ hecho |
 | 4 | Actualizar `documentaci_n_de_la_aplicaci_n.md` | ✅ hecho |
-| 5 | **Último:** workflow de GitHub Actions para el APK | ⬜ pendiente |
+| 5 | **Último:** workflow de GitHub Actions para el APK | ✅ hecho en local / pendiente el push |
 
 ---
 
@@ -143,6 +143,8 @@ Se considera terminado cuando:
 
   Después: pestaña **Actions** → workflow "Build APK" → descargar el artifact → instalar.
 
+  **Estado:** ✅ hecho en local / pendiente el push (requiere las credenciales del usuario).
+
 **Plan B:** si el build de Capacitor fallara en CI, publicar como artifact un `.zip` con `index.html` (no bloquea los pasos 1–4).
 
 **Aceptación:** el YAML parsea sin errores, la estructura de pasos es válida y el workflow queda listo para ejecutarse al hacer push.
@@ -183,3 +185,4 @@ Se considera terminado cuando:
 | 2026-11-08 | 2 | `renderCredits()` muestra la celda "Inicial (X%)" con `$X (Bs Y)` junto a "Total Venta" (fallback 0 % para créditos heredados) y "Monto por Cuota" pasa a fila `col-span-2`. Verificado con arnés Node sobre el JS inline: $100 al 30 % → `$30.00 (Bs 1.095,00)`; sin `initialPercent` → `$0.00 (Bs 0,00)`. |
 | 2026-11-08 | 3 | `prepareShareMessage()` elimina la variable muerta `currentInstallmentNum` y calcula `paidParts`; el mensaje muestra `🧾 *Parte a pagar:* paidParts+1 de N` o `Parte N de N` al liquidar. Verificado: 3 partes con 1 abono → "Parte a pagar: 2 de 3" y "Te restan 2 parte(s)"; sin abonos → "1 de N"; liquidado → "Parte 3 de 3". Se corrigieron también el comando de extracción JS del §4 y el smoke para que coincidan con la numeración "Parte a pagar". |
 | 2026-11-08 | 4 | `documentaci_n_de_la_aplicaci_n.md` actualizada: nombre `index.html`, características de la inicial en la tarjeta y del comprobante automático al abonar, estructura del repositorio, guía APK reescrita (workflow, disparadores, artifact en Actions, instalación por fuentes desconocidas o `adb`), limitación de CDN y referencia al plan como roadmap. Verificado: sin referencias al nombre viejo. |
+| 2026-11-08 | 5 | `capacitor.config.json` y `.github/workflows/build-apk.yml` creados: disparadores `push` a `main` + `workflow_dispatch`, `permissions: contents: read`, Ubuntu + Node 20 + Java 17 (temurin) + Android SDK, Capacitor 6 con versiones fijadas, copia de `index.html` a `www/`, `assembleDebug` y artifact `FinanBCV-apk`. Validado en local con PyYAML y comprobación de estructura (24/24 PASS, sin secretos). **Pendiente solo el push** (`git remote add origin …` + `git push -u origin main`). |

@@ -1,0 +1,6 @@
+{
+  "appId": "com.finanbcv.app",
+  "appName": "FinanBCV",
+  "webDir": "www",
+  "server": { "androidScheme": "https" }
+}
