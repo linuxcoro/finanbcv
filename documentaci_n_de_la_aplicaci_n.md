@@ -56,18 +56,18 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
   "clientName": "Juan Pérez (0412-1112233)",
   "totalUsd": 100.00,
   "bcvRate": 36.50,
-  "totalInstallments": 3,
-  "remainingInstallments": 2,
-  "installmentUsd": 23.33,
+  "totalInstallments": 2,
+  "remainingInstallments": 1,
+  "installmentUsd": 50.00,
   "createdAt": "8/11/2026",
   "payments": [
     {
       "id": 1700000001000,
       "paidAt": "2026-11-08T13:30:00.000Z",
       "part": 1,
-      "totalParts": 3,
-      "amountUsd": 23.33,
-      "amountBs": 851.67,
+      "totalParts": 2,
+      "amountUsd": 50.00,
+      "amountBs": 1825.00,
       "rate": 36.50
     }
   ]
