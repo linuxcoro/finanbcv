@@ -156,7 +156,7 @@ git push -u origin main
 ### Generar el APK
 
 1. El workflow **Build APK** se dispara automáticamente con cada *push* a la rama `main` (también se puede lanzar manualmente desde **Actions → Build APK → Run workflow**).
-2. El workflow instala Node 20, Java 17 (Temurin), el SDK de Android y Capacitor 6; copia `index.html` a `www/`, añade la plataforma Android y ejecuta `./gradlew assembleDebug`.
+2. El workflow configura Node 20, Java 17 (Temurin) y Capacitor 6, verifica el SDK de Android preinstalado en el runner, copia `index.html` a `www/`, añade la plataforma Android y ejecuta `./gradlew assembleDebug`.
 3. Al terminar, abre la ejecución del workflow en la pestaña **Actions** y descarga el *artifact* **`FinanBCV-apk`**, que contiene `app-debug.apk`.
 
 ### Instalar el APK
