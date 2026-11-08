@@ -1,10 +1,10 @@
 # Plan de mejoras — FinanBCV
 
-**Fecha:** 2026-11-08 · **Estado global:** ⬜ pendiente de ejecución
+**Fecha:** 2026-11-08 · **Estado global:** 🟨 en ejecución (pasos 1–3 de 5 hechos)
 **Archivo de la app:** `gestor_de_ventas_financiadas_bcv.html` (595 líneas, SPA de un solo archivo)
 **Documentación:** `documentaci_n_de_la_aplicaci_n.md`
 
-> Este documento es el plan de trabajo **por pasos**. Todos los pasos están en estado pendiente: ninguno se ha ejecutado todavía. El **Paso 6 (workflow de GitHub) es deliberadamente el último**, por pedido del usuario. Al cerrar cada paso se debe marcar el estado (`✅ hecho`), actualizar la tabla y añadir una línea a la Bitácora.
+> Este documento es el plan de trabajo **por pasos**. Los pasos 1–3 ya están ejecutados (ver Bitácora); los pasos 4–5 siguen pendientes. El **workflow de GitHub es deliberadamente el último**, por pedido del usuario. Al cerrar cada paso se marca el estado (`✅ hecho`), se actualiza la tabla y se añade una línea a la Bitácora.
 
 ---
 
@@ -32,7 +32,7 @@ Se considera terminado cuando:
 
 | # | Paso | Estado |
 |---|------|--------|
-| 1 | Repositorio git y renombrar a `index.html` | ⬜ pendiente |
+| 1 | Repositorio git y renombrar a `index.html` | ✅ hecho |
 | 2 | Mostrar la inicial pagada en la tarjeta del crédito | ⬜ pendiente |
 | 3 | Número de parte correcto en el mensaje de Pago Móvil | ⬜ pendiente |
 | 4 | Actualizar `documentaci_n_de_la_aplicaci_n.md` | ⬜ pendiente |
@@ -179,3 +179,4 @@ Se considera terminado cuando:
 | Fecha | Paso | Resultado |
 |-------|------|-----------|
 | 2026-11-08 | — | Plan creado. Ningún paso ejecutado todavía; el repositorio sigue con `gestor_de_ventas_financiadas_bcv.html` y `documentaci_n_de_la_aplicaci_n.md`. |
+| 2026-11-08 | 1 | Repositorio git creado en rama `main` con commit inicial de los 3 archivos; rename con `git mv` de `gestor_de_ventas_financiadas_bcv.html` a `index.html` (commit `f1fb567`). Único HTML de la raíz y app sin rutas relativas. |
