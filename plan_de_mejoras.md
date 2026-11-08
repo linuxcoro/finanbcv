@@ -272,11 +272,11 @@ Prerrequisitos: cuenta de GitHub y autenticación. No hay `gh` instalado; la rut
 
 ## 9. Mejora posterior — Tasas USD/EUR en la app con botón Actualizar
 
-**Estado:** ✅ hecho (mejora posterior a los pasos 1–5).
+**Estado:** ✅ hecho (mejora posterior a los pasos 1–5; fuente actualizada a GitHub).
 
 - `index.html` muestra las tasas oficiales **USD** y **EUR** del BCV con fecha valor y hora de actualización, y un botón **Actualizar**.
-- Al cargar y al pulsar el botón lee `tasas.json` (con caché evitada); si la app se sirve con `bcv_server.py`, el botón hace `POST /api/actualizar`: el servidor ejecuta `bcv_scraper.py`, regenera `tasas.json` de forma atómica y devuelve el JSON. Sin endpoint (servidor estático) el botón relee el archivo; como último recurso usa las tasas guardadas en `localStorage.finanbcv_tasas`.
+- Al cargar y al pulsar el botón descarga `tasas.json` desde `https://raw.githubusercontent.com/linuxcoro/finanbcv/main/tasas.json` (con `?t=…` para evitar la caché); si no hay red usa las últimas tasas guardadas en `localStorage.finanbcv_tasas`.
 - La tasa del dólar se rellena automáticamente en el campo **Tasa BCV (Bs/$)** sin pisar una tasa personalizada; la tarjeta USD permite reaplicarla y la del euro se muestra como referencia.
-- `bcv_server.py` incorpora las rutas `GET /app`, `GET /tasas.json` y `POST /api/actualizar` (además de las existentes).
-- El workflow del APK copia `tasas.json` a `www/` si existe, para que el APK muestre la última foto de las tasas.
+- `bcv_server.py` conserva `GET /app`, `GET /tasas.json` y `POST /api/actualizar`, aunque la app ya no usa ese endpoint para actualizarse.
+- El workflow del APK copia `index.html` y `tasas.json` a `www/`; la app empaquetada descarga las tasas de GitHub en tiempo de ejecución.
 - Documentación actualizada en `README_tasas.md` y `documentaci_n_de_la_aplicaci_n.md`.

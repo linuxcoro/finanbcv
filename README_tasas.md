@@ -14,12 +14,13 @@ HTML y exponerlas como API JSON.
 | `templates/tasas.html` | Plantilla de la página de tasas (modo servidor y modo estático). |
 | `requirements-tasas.txt` | Dependencias de Python. |
 | `test_bcv_scraper.py` | Pruebas sin red del parser y del formato de números. |
-| `tasas.json` | Últimas tasas USD/EUR generadas por `bcv_scraper.py`. Lo consume `index.html`. |
+| `tasas.json` | Últimas tasas USD/EUR generadas por `bcv_scraper.py`. La app las descarga desde GitHub. |
 | `tasas.html` | Ejemplo generado: página estática con las tasas del día. |
 | `.github/workflows/actualizar-tasas.yml` | Workflow de GitHub Actions que regenera `tasas.json` cada hora y lo commitea. |
 
-`index.html` (la app FinanBCV) muestra las tasas de USD y EUR desde
-`tasas.json` y tiene un botón **Actualizar**; ver la última sección.
+`index.html` (la app FinanBCV) muestra las tasas de USD y EUR desde el
+`tasas.json` publicado en GitHub y tiene un botón **Actualizar**; ver la
+última sección.
 
 ## Instalación
 
@@ -92,7 +93,8 @@ python3 bcv_server.py
 
 Abre <http://127.0.0.1:8000> para ver la página con ambas tasas; se
 actualiza sola cada 60 segundos consultando la API. La app FinanBCV está en
-<http://127.0.0.1:8000/app> y su botón **Actualizar** regenera `tasas.json`.
+<http://127.0.0.1:8000/app> y su botón **Actualizar** descarga las tasas de
+GitHub (el servidor ya no las regenera para la app).
 
 ### Endpoints
 
@@ -103,7 +105,7 @@ actualiza sola cada 60 segundos consultando la API. La app FinanBCV está en
 | `GET /tasas.json` | Archivo `tasas.json` regenerado por el scraper (sin caché). |
 | `GET /api/tasas` | JSON con USD, EUR, fecha valor y metadatos. |
 | `GET /api/tasas?refresh=true` | Igual, ignorando la caché. |
-| `POST /api/actualizar` | Ejecuta `bcv_scraper.py`, regenera `tasas.json` y devuelve el JSON. |
+| `POST /api/actualizar` | Ejecuta `bcv_scraper.py`, regenera `tasas.json` y devuelve el JSON (la app ya no lo usa). |
 | `GET /health` | Estado del servicio (no consulta el BCV). |
 | `GET /docs` | Documentación interactiva (Swagger UI). |
 
@@ -161,23 +163,22 @@ extracción de USD/EUR, fecha valor y el contexto de la plantilla.
 La app muestra una tarjeta con el **dólar (USD)** y el **euro (EUR)** y un
 botón **Actualizar**. Al cargar y al pulsar el botón:
 
-1. Si la app se sirve con `bcv_server.py`, el botón hace `POST /api/actualizar`:
-   el servidor ejecuta el scraper, regenera `tasas.json` y devuelve las tasas.
-2. Si se sirve con un servidor estático (`python3 -m http.server`), el botón
-   relee `tasas.json` (con `?t=…` para evitar la caché). Para regenerarlo:
+1. Descarga `tasas.json` desde GitHub:
+   <https://raw.githubusercontent.com/linuxcoro/finanbcv/main/tasas.json>
+   (con `?t=…` para evitar la caché).
+2. Si no hay red o la descarga falla, usa las últimas tasas guardadas en
+   `localStorage` (`finanbcv_tasas`).
 
-   ```bash
-   python3 bcv_scraper.py > tasas.json 2>/dev/null
-   ```
-
-3. Si no hay red o `tasas.json` no está disponible, se usan las últimas tasas
-   guardadas en `localStorage` (`finanbcv_tasas`).
+El workflow horario mantiene ese archivo al día, así que la app no necesita
+servidor local ni que se regenere `tasas.json` a mano para actualizarse.
 
 La tasa del dólar se coloca automáticamente en el campo **Tasa BCV (Bs/$)** de
 la calculadora (sin pisar una tasa escrita a mano); la tarjeta del dólar también
 permite aplicarla con un toque. La del euro se muestra como referencia.
 
 ### Servir la app con el servidor
+
+Opcional, para desarrollo local:
 
 ```bash
 python3 bcv_server.py
@@ -190,8 +191,7 @@ python3 -m http.server 8000
 # luego abre http://127.0.0.1:8000/index.html
 ```
 
-> En el APK de Capacitor el JSON se lee del paquete (`www/tasas.json`), por lo
-> que las tasas son una foto del momento de la compilación; el botón
-> **Actualizar** solo puede releer ese archivo. El servidor habilita CORS para
-> cualquier origen, así que también se puede consultar `GET /api/tasas` desde
-> otra página.
+> En el APK de Capacitor la app también descarga las tasas de GitHub; el
+> `www/tasas.json` que copia el workflow es una foto de la compilación y ya no
+> se usa para actualizar. El servidor habilita CORS para cualquier origen, así
+> que también se puede consultar `GET /api/tasas` desde otra página.

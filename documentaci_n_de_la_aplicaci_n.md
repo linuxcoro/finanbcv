@@ -9,7 +9,7 @@ La aplicación permite llevar el control de abonos de clientes, calcular el mont
 ## 🚀 Características Principales
 
 * **Cálculo Automático a Tasa BCV:** Convierte el monto en dólares a bolívares según la tasa ingresada y divide el monto exacto en las cuotas acordadas.
-* **Tasas BCV Integradas (USD y EUR):** la pantalla principal muestra la tasa oficial del dólar y del euro con su fecha valor y hora de actualización. El botón **Actualizar** relee `tasas.json` (o ejecuta el scraper si la app se sirve con `bcv_server.py`) y coloca la tasa del dólar en la calculadora sin pisar una tasa personalizada.
+* **Tasas BCV Integradas (USD y EUR):** la pantalla principal muestra la tasa oficial del dólar y del euro con su fecha valor y hora de actualización. El botón **Actualizar** descarga `tasas.json` desde el repositorio en GitHub (`raw.githubusercontent.com`) y coloca la tasa del dólar en la calculadora sin pisar una tasa personalizada.
 * **Integración Nativa de Pago Móvil:** Configura tus datos bancarios una sola vez (Banco, Cédula/RIF y Teléfono) y genera plantillas de cobro personalizadas con 1 clic, indicando la parte que corresponde pagar (por ejemplo, "Parte 2 de 3").
 * **Comprobante al Instante:** al presionar **"Abonar Cuota"** se descuenta la parte pendiente, la tarjeta actualiza su progreso y se abre automáticamente el comprobante de Pago Móvil con la siguiente parte a pagar.
 * **Historial de Pagos por Crédito:** cada tarjeta abre una ventana con todos los abonos de cuota del crédito, con fecha, número de parte y montos en dólares y bolívares, además del total abonado en cuotas.
@@ -29,7 +29,7 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 * **JavaScript (Vanilla ES6+):** 
   * Manejo del Estado (Clientes, Pagos, Ajustes).
   * `localStorage` para almacenamiento persistente.
-  * `fetch` para leer `tasas.json` y para pedir la actualización al servidor BCV.
+  * `fetch` para descargar las tasas (`tasas.json`) desde GitHub y para la actualización manual.
   * API Nativa `navigator.share` y `document.execCommand('copy')` para salida de mensajes.
   * Manipulación dinámica del DOM y lógica de cálculo financiero.
 * **Lucide Icons (CDN):** Iconografía liviana vectorial.
@@ -42,7 +42,7 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 | Archivo | Descripción |
 |---------|-------------|
 | `index.html` | Aplicación completa (SPA de un solo archivo). |
-| `tasas.json` | Tasas oficiales USD/EUR que muestra la app (lo genera `bcv_scraper.py`). |
+| `tasas.json` | Tasas oficiales USD/EUR generadas por `bcv_scraper.py`; la app las descarga desde GitHub. |
 | `bcv_scraper.py` | Scraper de las tasas del BCV; escribe `tasas.json`. |
 | `bcv_server.py` | Servidor local opcional: sirve la app y actualiza las tasas con `POST /api/actualizar`. |
 | `templates/tasas.html` | Página de tasas del servidor (modo servidor y estático). |
@@ -99,7 +99,7 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 
 1. **Tasas del BCV:**
    * La sección **Tasas del BCV** muestra el dólar (USD) y el euro (EUR) con la fecha valor y la hora de actualización.
-   * Pulsa **Actualizar** para releer `tasas.json`; si la app se sirve con `bcv_server.py`, el botón además ejecuta el scraper y regenera el archivo.
+   * Pulsa **Actualizar** para descargar las tasas publicadas en GitHub (`raw.githubusercontent.com/linuxcoro/finanbcv/main/tasas.json`); si no hay conexión se usan las últimas guardadas.
    * La tasa del dólar se coloca sola en la calculadora; toca la tarjeta **USD** para reaplicarla si escribiste una tasa a mano.
 2. **Configuración Inicial:**
    * Haz clic en el icono del código QR / Ajustes en la barra superior.
@@ -121,9 +121,10 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 python3 bcv_scraper.py > tasas.json 2>/dev/null
 ```
 
-La app vuelve a leerlo al pulsar **Actualizar**. Si la sirves con
-`python3 bcv_server.py` (en <http://127.0.0.1:8000/app>), el botón ejecuta el
-scraper directamente. Guía completa en [`README_tasas.md`](README_tasas.md).
+Este comando solo actualiza la copia local (útil para el servidor o para
+commitear). La app **no** lee ese archivo local: al pulsar **Actualizar**
+descarga el `tasas.json` publicado en GitHub, que el workflow horario
+regenera. Guía completa en [`README_tasas.md`](README_tasas.md).
 
 > En GitHub, el workflow **Actualizar tasas BCV**
 > (`.github/workflows/actualizar-tasas.yml`) ejecuta ese mismo comando **cada
@@ -169,9 +170,9 @@ git push -u origin main
 
 ### Limitaciones
 
-* **Requiere internet en el primer arranque:** Tailwind CSS y Lucide Icons se cargan por CDN; sin conexión no hay estilos ni iconos.
-* **La app necesita un servidor para leer las tasas:** `index.html` obtiene USD/EUR de `tasas.json` con `fetch`, así que debe abrirse por HTTP (`python3 bcv_server.py` en `/app` o `python3 -m http.server`) o dentro del APK. Abierta con doble clic (`file://`) muestra el aviso y hay que escribir la tasa a mano; las últimas tasas también quedan en `localStorage` (`finanbcv_tasas`).
-* En el APK las tasas son la copia de `tasas.json` incluida al compilar (`www/tasas.json`); el botón **Actualizar** relee esa copia, no consulta el BCV.
+* **Requiere internet:** Tailwind CSS y Lucide Icons se cargan por CDN y las tasas se descargan de GitHub; sin conexión no hay estilos ni iconos y se muestran las últimas tasas guardadas en `localStorage`.
+* **Las tasas vienen de GitHub:** `index.html` descarga `tasas.json` desde `raw.githubusercontent.com`, así que no necesita servidor local y también funciona abierta con doble clic (`file://`). Si la descarga falla, usa las últimas tasas guardadas en `localStorage` (`finanbcv_tasas`).
+* En el APK las tasas también se descargan de GitHub al abrir la app y al pulsar **Actualizar**; el `www/tasas.json` que copia el workflow ya no se usa para actualizar.
 * Los datos (`finanbcv_credits`, `finanbcv_settings`, `finanbcv_theme`) se guardan en el `localStorage` del WebView del teléfono; no hay sincronización entre dispositivos.
 * El historial de pagos se guarda dentro de `finanbcv_credits` (campo `payments`). Los créditos creados antes de esta versión no tienen detalle de pagos: su historial muestra un resumen "pagos anteriores sin detalle".
 * El workflow copia `index.html` y `tasas.json` a `www/`; la carpeta generada no se versiona ni se edita a mano.

@@ -160,7 +160,7 @@
                         <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Tasa BCV (Bs/$)</label>
                         <div class="relative">
                             <span class="absolute left-3 top-2.5 text-xs font-semibold text-slate-400">Bs</span>
-                            <input type="number" step="0.01" min="0.01" id="bcvRate" required placeholder="0.00" oninput="calculateOutputs()" class="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-brand-500 outline-none transition">
+                            <input type="number" step="any" min="0.01" id="bcvRate" required placeholder="0.00" oninput="calculateOutputs()" class="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-brand-500 outline-none transition">
                         </div>
                     </div>
                 </div>
@@ -353,6 +353,9 @@
 
         // --- MÓDULO TASAS BCV ---
         const RATES_STORAGE_KEY = 'finanbcv_tasas';
+        // Fuente remota de las tasas: el workflow de GitHub Actions
+        // regenera este tasas.json en el repositorio cada hora.
+        const RATES_URL = 'https://raw.githubusercontent.com/linuxcoro/finanbcv/main/tasas.json';
         let lastRates = null;
         let lastAutoUsd = null;
         let ratesRefreshing = false;
@@ -434,44 +437,22 @@
             }
 
             const mensajes = {
-                servidor: ['Tasas actualizadas desde el BCV.', 'ok'],
-                archivo: ['Tasas cargadas desde tasas.json. Toca el dólar para usarlo en la calculadora.', 'ok'],
+                remoto: ['Tasas actualizadas desde GitHub. Toca el dólar para usarlo en la calculadora.', 'ok'],
                 guardadas: ['Sin conexión: se muestran las últimas tasas guardadas.', 'warn']
             };
-            const [texto, tipo] = mensajes[origen] || mensajes.archivo;
+            const [texto, tipo] = mensajes[origen] || mensajes.remoto;
             setRateStatus(texto, tipo);
         }
 
         async function leerTasasJson() {
-            const respuesta = await fetch(`tasas.json?t=${Date.now()}`, {
+            // Lee el tasas.json publicado en GitHub. El parámetro t evita
+            // que el navegador (o el CDN de GitHub) devuelva una copia vieja.
+            const respuesta = await fetch(`${RATES_URL}?t=${Date.now()}`, {
                 cache: 'no-store',
                 headers: { 'Accept': 'application/json' }
             });
             if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
             return normalizarRates(await respuesta.json());
-        }
-
-        async function actualizarEnServidor() {
-            // Solo tiene sentido con un servidor que exponga /api/actualizar
-            // (bcv_server.py). En un servidor estático o en file:// se ignora.
-            if (!/^https?:$/.test(window.location.protocol)) return null;
-            const control = new AbortController();
-            const temporizador = setTimeout(() => control.abort(), 60000);
-            try {
-                const respuesta = await fetch('/api/actualizar', {
-                    method: 'POST',
-                    cache: 'no-store',
-                    headers: { 'Accept': 'application/json' },
-                    signal: control.signal
-                });
-                if (!respuesta.ok) return null;
-                const datos = await respuesta.json();
-                return datos && datos.ok ? normalizarRates(datos) : null;
-            } catch (error) {
-                return null;
-            } finally {
-                clearTimeout(temporizador);
-            }
         }
 
         function cargarTasasGuardadas() {
@@ -484,21 +465,18 @@
         }
 
         function mensajeSinTasas() {
-            if (window.location.protocol === 'file:') {
-                return 'Para leer tasas.json abre la app con python3 bcv_server.py (o un servidor local). También puedes escribir la tasa a mano.';
-            }
-            return 'No se pudo leer tasas.json. Genera el archivo con: python3 bcv_scraper.py > tasas.json 2>/dev/null';
+            return 'No se pudieron leer las tasas desde GitHub. Revisa tu conexión a Internet y toca Actualizar. También puedes escribir la tasa a mano.';
         }
 
         async function cargarTasasIniciales() {
             setRateStatus('Cargando tasas del BCV…', 'info');
             try {
-                const delArchivo = await leerTasasJson();
-                if (delArchivo) {
-                    pintarRates(delArchivo, 'archivo');
+                const delRemoto = await leerTasasJson();
+                if (delRemoto) {
+                    pintarRates(delRemoto, 'remoto');
                     return;
                 }
-                throw new Error('tasas.json sin datos válidos');
+                throw new Error('tasas sin datos válidos');
             } catch (error) {
                 const guardadas = cargarTasasGuardadas();
                 if (guardadas) {
@@ -516,33 +494,23 @@
             setRateStatus('Consultando las tasas del BCV…', 'info');
 
             try {
-                // 1) Si la app se sirve con bcv_server.py, el botón ejecuta el
-                //    scraper en el servidor y deja tasas.json al día.
-                const delServidor = await actualizarEnServidor();
-                if (delServidor) {
-                    pintarRates(delServidor, 'servidor');
-                    showToast('Tasas actualizadas desde el BCV');
+                // 1) Lee las tasas publicadas en GitHub; el workflow del
+                //    repositorio actualiza ese tasas.json cada hora.
+                const delRemoto = await leerTasasJson();
+                if (delRemoto) {
+                    pintarRates(delRemoto, 'remoto');
+                    showToast('Tasas actualizadas desde GitHub');
                     return;
                 }
-
-                // 2) Sin endpoint (servidor estático): relee tasas.json.
-                const delArchivo = await leerTasasJson();
-                if (delArchivo) {
-                    pintarRates(delArchivo, 'archivo');
-                    showToast('Tasas recargadas desde tasas.json');
-                    return;
-                }
-
-                // 3) Último recurso: tasas guardadas en el dispositivo.
+                throw new Error('tasas sin datos válidos');
+            } catch (error) {
+                // 2) Sin conexión: último recurso, tasas guardadas en el dispositivo.
                 const guardadas = cargarTasasGuardadas();
                 if (guardadas) {
                     pintarRates(guardadas, 'guardadas');
                     showToast('Sin conexión: mostrando las últimas tasas guardadas');
                     return;
                 }
-
-                throw new Error('tasas no disponibles');
-            } catch (error) {
                 setRateStatus(mensajeSinTasas(), 'error');
                 showToast('No se pudieron cargar las tasas');
             } finally {
