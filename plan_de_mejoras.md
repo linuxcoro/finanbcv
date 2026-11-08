@@ -297,3 +297,14 @@ Prerrequisitos: cuenta de GitHub y autenticación. No hay `gh` instalado; la rut
 - El workflow **Build APK** instala `@capacitor/share@6`, por lo que el plugin aparece en `capacitor.plugins.json` y queda disponible en el APK.
 - APK regenerado: run [#42523675049](https://github.com/linuxcoro/finanbcv/actions/runs/42523675049), artifact `FinanBCV-apk` (3.383.095 bytes).
 - Documentación actualizada en `documentaci_n_de_la_aplicaci_n.md`. Commit: `feat: compartir Pago Móvil por cualquier app o red social`.
+
+## 11. Mejora posterior — Monetización con AdMob (integración)
+
+**Estado:** 🚧 integración implementada; pendiente de validar el build en CI y, más adelante, la publicación en Play para que AdMob sirva anuncios reales.
+
+- La app integra el plugin nativo `@capacitor-community/admob` (Google Mobile Ads SDK 25.x + UMP) mediante el módulo `window.Ads` de `index.html`: banner adaptativo abajo, interstitial en cortes naturales (registrar crédito y cerrar el comprobante de un abono), consentimiento UMP y botón **Privacidad y anuncios** en Ajustes.
+- Por defecto el APK usa los **IDs de prueba de Google**; los IDs reales se inyectan con las variables de Actions `ADMOB_APP_ID`, `ADMOB_BANNER_ID`, `ADMOB_INTERSTITIAL_ID` y `ADMOB_TEST_MODE=false`.
+- Nuevo script `scripts/admob-build-config.mjs` (idempotente): genera `www/ads-config.js` y parchea `AndroidManifest.xml` / `strings.xml` del proyecto Android que se genera en CI.
+- El workflow **Build APK** sube a Capacitor 8 (Node 22, Java 21, `android-36`/`build-tools 36.0.0`, `targetSdk 36`) e instala `@capacitor-community/admob@8.3.0`; verifica el meta-data de AdMob, el plugin y `ads-config.js` dentro del APK antes de subir el artifact.
+- El banner se oculta con los modales abiertos, reserva su alto con la variable CSS `--admob-banner-h` y no se muestra si no hay consentimiento, internet o Google Play Services.
+- AdMob **no paga** por un APK instalado a mano: queda documentado el checklist de publicación (Play, `app-ads.txt`, verificación de AdMob, firma release y datos de cobro) en `documentaci_n_de_la_aplicaci_n.md`.

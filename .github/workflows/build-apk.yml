@@ -13,56 +13,82 @@ permissions:
 
 jobs:
   build:
-    name: Compilar APK debug
+    name: Compilar APK debug con AdMob
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
-      - name: Setup Java 17
+      - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       - name: Verificar Android SDK
         run: |
           set -euo pipefail
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          # Los runners ubuntu-latest ya traen el SDK con android-34 y build-tools 34.
+          # Capacitor 8 compila con android-36 y build-tools 36.0.0.
           test -n "${ANDROID_HOME:-}"
-          test -d "$ANDROID_HOME/platforms/android-34"
-          test -d "$ANDROID_HOME/build-tools/34.0.0"
+          test -d "$ANDROID_HOME/platforms/android-36"
+          test -d "$ANDROID_HOME/build-tools/36.0.0"
           ls "$ANDROID_HOME/platforms" | tr '\n' ' '; echo
           ls "$ANDROID_HOME/build-tools" | tr '\n' ' '; echo
 
-      - name: Install Capacitor 6
+      - name: Install Capacitor 8 + plugins
         run: |
           npm init -y
-          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/share@6
+          npm install @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/share@8 @capacitor-community/admob@8.3.0
 
       - name: Prepare web assets
         run: |
           mkdir -p www
           cp index.html www/index.html
           if [ -f tasas.json ]; then cp tasas.json www/tasas.json; fi
+          # Genera www/ads-config.js (IDs de prueba por defecto o los de las variables del repo).
+          node scripts/admob-build-config.mjs
 
       - name: Add Android platform
+        run: npx cap add android
+
+      - name: Configurar AdMob en el proyecto Android
         run: |
-          npx cap add android
-          npx cap sync android
+          # Parchea AndroidManifest.xml y strings.xml con el App ID de AdMob.
+          node scripts/admob-build-config.mjs
+
+      - name: Sync Android
+        run: npx cap sync android
 
       - name: Build debug APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
+
+      - name: Verificar integración de AdMob en el APK
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK"
+
+          MANIFEST_TXT="$(mktemp)"
+          AAPT2="$ANDROID_HOME/build-tools/36.0.0/aapt2"
+          if ! "$AAPT2" dump xmltree "$APK" --file AndroidManifest.xml > "$MANIFEST_TXT" 2>/dev/null; then
+            unzip -p "$APK" AndroidManifest.xml | strings > "$MANIFEST_TXT"
+          fi
+          grep -q 'com.google.android.gms.ads.APPLICATION_ID' "$MANIFEST_TXT"
+
+          unzip -p "$APK" assets/capacitor.plugins.json | grep -q '@capacitor-community/admob'
+          unzip -p "$APK" assets/public/ads-config.js | grep -q 'FINANBCV_ADS'
+
+          echo "APK con AdMob verificado: $(stat -c%s "$APK") bytes"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

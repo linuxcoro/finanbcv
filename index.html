@@ -2,7 +2,7 @@
 <html lang="es" class="h-full">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Gestión de Ventas Financiadas - Tasa BCV</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -31,6 +31,17 @@
         body {
             font-family: 'Inter', sans-serif;
         }
+        /* AdMob: el banner nativo se dibuja encima del WebView, así que se reserva
+           su alto en el contenido para que no tape la última tarjeta ni el toast. */
+        :root {
+            --admob-banner-h: 0px;
+        }
+        body.finanbcv-with-ads {
+            padding-bottom: var(--admob-banner-h);
+        }
+        body.finanbcv-with-ads #toast {
+            bottom: calc(var(--admob-banner-h) + 1.25rem);
+        }
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
@@ -47,7 +58,7 @@
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full flex flex-col transition-colors duration-200">
 
     <!-- Header Principal -->
-    <header class="sticky top-0 z-40 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 px-4 py-3">
+    <header class="sticky top-0 z-40 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 px-4 py-3" style="padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));">
         <div class="max-w-4xl mx-auto flex items-center justify-between">
             <div class="flex items-center space-x-2">
                 <div class="p-2 bg-brand-500 text-white rounded-xl shadow-md shadow-brand-500/20">
@@ -245,6 +256,11 @@
                     </button>
                 </div>
             </form>
+
+            <!-- Sólo se muestra si el consentimiento de anuncios lo exige (UMP). -->
+            <button type="button" id="btnPrivacyOptions" onclick="window.Ads && window.Ads.showPrivacyOptions()" class="hidden w-full py-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-semibold text-xs rounded-xl transition">
+                Privacidad y anuncios
+            </button>
         </div>
     </div>
 
@@ -607,6 +623,7 @@
             document.getElementById('calcForm').reset();
             calculateOutputs();
             showToast('Crédito registrado con éxito');
+            if (window.Ads && window.Ads.maybeShowInterstitial) window.Ads.maybeShowInterstitial('credito');
         }
 
         function loadCredits() {
@@ -723,6 +740,9 @@
                 showToast(`Abono registrado para ${credit.clientName}`);
                 // Abre de una vez la ventana de compartir
                 prepareShareMessage(id);
+                // El interstitial se muestra al cerrar el modal de compartir,
+                // nunca encima de la ventana de Pago Móvil.
+                if (window.Ads && window.Ads.queueInterstitial) window.Ads.queueInterstitial('abono');
             }
         }
 
@@ -929,6 +949,7 @@
         function toggleModal(modalId) {
             const modal = document.getElementById(modalId);
             modal.classList.toggle('hidden');
+            if (window.Ads && window.Ads.onModalToggle) window.Ads.onModalToggle();
         }
 
         function showToast(message) {
@@ -951,6 +972,294 @@
                 }[m];
             });
         }
+    </script>
+
+    <!-- Monetización con AdMob: sólo se activa dentro del APK; en el navegador no hace nada. -->
+    <script>
+        window.Ads = (function () {
+            'use strict';
+
+            // IDs de prueba oficiales de Google: no generan tráfico inválido.
+            var TEST_IDS = {
+                appId: 'ca-app-pub-3940256099942544~3347511713',
+                bannerId: 'ca-app-pub-3940256099942544/6300978111',
+                interstitialId: 'ca-app-pub-3940256099942544/1033173712'
+            };
+            var DEFAULT_CONFIG = {
+                enabled: true,
+                testMode: true,
+                appId: TEST_IDS.appId,
+                bannerId: TEST_IDS.bannerId,
+                interstitialId: TEST_IDS.interstitialId
+            };
+            var MIN_INTERSTITIAL_MS = 3 * 60 * 1000;
+            var LAST_INTERSTITIAL_KEY = 'finanbcv_last_interstitial';
+            var INIT_TIMEOUT_MS = 8000;
+
+            // `config` y `state` viven en el cierre, nunca en variables globales.
+            var config = {};
+            var state = {
+                booted: false,
+                ready: false,
+                bannerLoaded: false,
+                bannerVisible: false,
+                interstitialPrepared: false,
+                pendingInterstitial: null,
+                privacyRequired: false
+            };
+
+            function log() {
+                if (window.console && console.info) {
+                    console.info.apply(console, ['[ads]'].concat(Array.prototype.slice.call(arguments)));
+                }
+            }
+
+            function plugin() {
+                return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob) || null;
+            }
+
+            function isNative() {
+                return !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+            }
+
+            function withTimeout(promise, ms) {
+                return Promise.race([
+                    promise,
+                    new Promise(function (resolve, reject) {
+                        setTimeout(function () {
+                            reject(new Error('tiempo de espera agotado (' + ms + ' ms)'));
+                        }, ms);
+                    })
+                ]);
+            }
+
+            // Los modales son los contenedores `fixed inset-0 z-50` sin la clase hidden.
+            function openModals() {
+                return document.querySelectorAll('.fixed.inset-0.z-50:not(.hidden)').length;
+            }
+
+            function setBannerPadding(height) {
+                var px = Math.max(0, Number(height) || 0);
+                document.documentElement.style.setProperty('--admob-banner-h', px + 'px');
+            }
+
+            function setBannerVisible(visible) {
+                var admob = plugin();
+                if (!admob || !state.ready || visible === state.bannerVisible) return;
+                var action;
+                if (visible) {
+                    action = state.bannerLoaded ? admob.resumeBanner() : admob.showBanner({
+                        adId: config.bannerId,
+                        adSize: 'ADAPTIVE_BANNER',
+                        position: 'BOTTOM_CENTER',
+                        margin: 0,
+                        isTesting: config.testMode === true
+                    });
+                    state.bannerLoaded = true;
+                } else {
+                    action = admob.hideBanner();
+                }
+                state.bannerVisible = visible;
+                if (visible) {
+                    document.body.classList.add('finanbcv-with-ads');
+                } else {
+                    document.body.classList.remove('finanbcv-with-ads');
+                }
+                Promise.resolve(action).catch(function (error) {
+                    state.bannerVisible = false;
+                    state.bannerLoaded = false;
+                    document.body.classList.remove('finanbcv-with-ads');
+                    log('No se pudo ' + (visible ? 'mostrar' : 'ocultar') + ' el banner:', error && error.message);
+                });
+            }
+
+            function syncBanner() {
+                setBannerVisible(openModals() === 0);
+            }
+
+            function prepareInterstitial() {
+                var admob = plugin();
+                if (!state.ready || !admob || !config.interstitialId) return;
+                Promise.resolve(admob.prepareInterstitial({
+                    adId: config.interstitialId,
+                    isTesting: config.testMode === true
+                })).then(function () {
+                    state.interstitialPrepared = true;
+                    log('Interstitial precargado.');
+                }).catch(function (error) {
+                    state.interstitialPrepared = false;
+                    log('Interstitial no disponible:', error && error.message);
+                });
+            }
+
+            function maybeShowInterstitial(origen) {
+                if (!state.ready) return;
+                if (openModals() > 0) {
+                    state.pendingInterstitial = origen || 'accion';
+                    return;
+                }
+                var last = Number(window.localStorage.getItem(LAST_INTERSTITIAL_KEY) || 0);
+                if (Date.now() - last < MIN_INTERSTITIAL_MS) return;
+                if (!state.interstitialPrepared) {
+                    prepareInterstitial();
+                    return;
+                }
+                var admob = plugin();
+                if (!admob) return;
+                state.pendingInterstitial = null;
+                setBannerVisible(false);
+                Promise.resolve(admob.showInterstitial()).then(function () {
+                    window.localStorage.setItem(LAST_INTERSTITIAL_KEY, String(Date.now()));
+                    state.interstitialPrepared = false;
+                    log('Interstitial mostrado (' + (origen || 'accion') + ').');
+                }).catch(function (error) {
+                    log('Interstitial no mostrado:', error && error.message);
+                    syncBanner();
+                });
+            }
+
+            function queueInterstitial(origen) {
+                state.pendingInterstitial = origen || 'accion';
+                // Si el selector nativo de compartir no cambia la visibilidad,
+                // este respaldo muestra el anuncio al volver a la app.
+                setTimeout(flushPendingInterstitial, 1500);
+            }
+
+            function flushPendingInterstitial() {
+                if (!state.pendingInterstitial || openModals() > 0) return;
+                if (document.hidden) return;
+                var origen = state.pendingInterstitial;
+                state.pendingInterstitial = null;
+                setTimeout(function () {
+                    maybeShowInterstitial(origen);
+                }, 350);
+            }
+
+            function revealPrivacyButton() {
+                var button = document.getElementById('btnPrivacyOptions');
+                if (button) button.classList.remove('hidden');
+            }
+
+            function showPrivacyOptions() {
+                var admob = plugin();
+                if (!admob || !admob.showPrivacyOptionsForm) return;
+                Promise.resolve(admob.showPrivacyOptionsForm()).catch(function (error) {
+                    log('Formulario de privacidad no disponible:', error && error.message);
+                });
+            }
+
+            function attachListeners(admob) {
+                try {
+                    admob.addListener('bannerAdSizeChanged', function (size) {
+                        setBannerPadding(size && size.height);
+                    });
+                    admob.addListener('bannerAdFailedToLoad', function () {
+                        state.bannerVisible = false;
+                        state.bannerLoaded = false;
+                        setBannerPadding(0);
+                        document.body.classList.remove('finanbcv-with-ads');
+                    });
+                    admob.addListener('interstitialAdDismissed', function () {
+                        syncBanner();
+                        prepareInterstitial();
+                    });
+                } catch (error) {
+                    log('No se pudieron registrar los eventos de AdMob:', error && error.message);
+                }
+            }
+
+            function start() {
+                var admob = plugin();
+                if (!admob || config.enabled === false) return;
+                log('Iniciando AdMob en modo ' + (config.testMode ? 'PRUEBA' : 'REAL') + '.');
+
+                withTimeout(admob.requestConsentInfo(), INIT_TIMEOUT_MS).then(function (info) {
+                    if (info && info.isConsentFormAvailable && info.status === 'REQUIRED') {
+                        return withTimeout(admob.showConsentForm(), INIT_TIMEOUT_MS * 2);
+                    }
+                    return info;
+                }).then(function (info) {
+                    var consent = info || {};
+                    state.privacyRequired = consent.privacyOptionsRequirementStatus === 'REQUIRED';
+                    if (state.privacyRequired) revealPrivacyButton();
+                    if (consent.canRequestAds !== true) {
+                        log('Consentimiento sin anuncios: no se cargan anuncios.');
+                        return false;
+                    }
+                    return withTimeout(admob.initialize(), INIT_TIMEOUT_MS).then(function () {
+                        state.ready = true;
+                        attachListeners(admob);
+                        syncBanner();
+                        prepareInterstitial();
+                        return true;
+                    });
+                }).catch(function (error) {
+                    log('AdMob no inicializado:', error && error.message);
+                });
+            }
+
+            function loadConfig() {
+                if (window.FINANBCV_ADS) {
+                    config = Object.assign({}, DEFAULT_CONFIG, window.FINANBCV_ADS);
+                    start();
+                    return;
+                }
+                var script = document.createElement('script');
+                script.src = 'ads-config.js';
+                script.onload = function () {
+                    config = Object.assign({}, DEFAULT_CONFIG, window.FINANBCV_ADS || {});
+                    start();
+                };
+                script.onerror = function () {
+                    // Sin ads-config.js se usan los IDs de prueba: nunca se publica
+                    // tráfico real por error.
+                    config = Object.assign({}, DEFAULT_CONFIG);
+                    start();
+                };
+                document.head.appendChild(script);
+            }
+
+            function init() {
+                if (state.booted) return;
+                state.booted = true;
+                if (!isNative()) {
+                    log('Plataforma web: los anuncios quedan desactivados.');
+                    return;
+                }
+                if (!plugin()) {
+                    log('El plugin nativo AdMob no está instalado.');
+                    return;
+                }
+                loadConfig();
+            }
+
+            function onModalToggle() {
+                syncBanner();
+                flushPendingInterstitial();
+            }
+
+            // Al volver del selector nativo de compartir (o de otra app) se
+            // muestra el interstitial que quedó pendiente.
+            if (document.addEventListener) {
+                document.addEventListener('visibilitychange', function () {
+                    if (!document.hidden) flushPendingInterstitial();
+                });
+            }
+
+            if (document.readyState === 'complete') {
+                init();
+            } else {
+                window.addEventListener('load', init);
+            }
+
+            return {
+                init: init,
+                onModalToggle: onModalToggle,
+                maybeShowInterstitial: maybeShowInterstitial,
+                queueInterstitial: queueInterstitial,
+                showPrivacyOptions: showPrivacyOptions
+            };
+        })();
     </script>
 </body>
 </html>

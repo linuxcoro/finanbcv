@@ -14,6 +14,7 @@ La aplicación permite llevar el control de abonos de clientes, calcular el mont
 * **Comprobante al Instante:** al presionar **"Abonar Cuota"** se descuenta la parte pendiente, la tarjeta actualiza su progreso y se abre automáticamente el comprobante de Pago Móvil con la siguiente parte a pagar.
 * **Historial de Pagos por Crédito:** cada tarjeta abre una ventana con todos los abonos de cuota del crédito, con fecha, número de parte y montos en dólares y bolívares, además del total abonado en cuotas.
 * **Compartir Directo (selector nativo de apps):** el botón **Pago Móvil** abre el menú de compartir del dispositivo (WhatsApp, Telegram, Instagram, SMS, correo o cualquier red social instalada). En el APK usa el plugin `@capacitor/share` y en el navegador la Web Share API; si no hay selector disponible, muestra el texto para copiarlo.
+* **Anuncios AdMob (solo en el APK):** banner adaptativo en la parte inferior y anuncios interstitial en cortes naturales (al registrar un crédito o al cerrar el comprobante de abono), con consentimiento UMP y anuncios de prueba por defecto. En el navegador la monetización queda desactivada.
 * **Modo Oscuro / Claro:** Alternador de interfaz de usuario con almacenamiento persistente en el navegador para ahorrar batería en pantallas OLED.
 * **Persistencia Local (`localStorage`):** Guarda la lista de clientes, abonos y configuraciones directamente en el almacenamiento del dispositivo, sin requerir internet ni bases de datos externas.
 * **Diseño Responsive / Mobile-First:** Interfaz moderna adaptada para teléfonos celulares y computadoras con Tailwind CSS.
@@ -33,7 +34,7 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
   * API de compartir: plugin `@capacitor/share` en el APK, `navigator.share` en navegadores compatibles y `document.execCommand('copy')` como respaldo.
   * Manipulación dinámica del DOM y lógica de cálculo financiero.
 * **Lucide Icons (CDN):** Iconografía liviana vectorial.
-* **Capacitor 6:** Empaquetado del contenido web como aplicación Android y acceso al selector nativo de compartir mediante `@capacitor/share` (usado por el workflow de CI para generar el APK).
+* **Capacitor 8:** Empaquetado del contenido web como aplicación Android y acceso a funciones nativas: `@capacitor/share` para el selector nativo de compartir y `@capacitor-community/admob` para los anuncios (ambos usados por el workflow de CI para generar el APK).
 
 ---
 
@@ -50,6 +51,7 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 | `documentaci_n_de_la_aplicaci_n.md` | Esta documentación. |
 | `plan_de_mejoras.md` | Roadmap y bitácora de mejoras del proyecto. |
 | `capacitor.config.json` | Configuración e identidad de la app para Capacitor. |
+| `scripts/admob-build-config.mjs` | Script del CI: genera `www/ads-config.js` y parchea el proyecto Android generado (`AndroidManifest.xml` y `strings.xml`) con el App ID de AdMob. |
 | `.github/workflows/build-apk.yml` | Workflow de GitHub Actions que compila el APK debug. |
 | `.github/workflows/actualizar-tasas.yml` | Workflow de GitHub Actions que regenera `tasas.json` cada hora y lo commitea. |
 
@@ -144,6 +146,7 @@ El repositorio ya incluye el workflow de **GitHub Actions** y la configuración 
 * El proyecto subido al repositorio `finanbcv` con estos archivos, ya incluidos en el repositorio:
   * `index.html` (la aplicación).
   * `capacitor.config.json` (identidad de la app).
+  * `scripts/admob-build-config.mjs` (configuración de AdMob para el APK).
   * `.github/workflows/build-apk.yml` (workflow de compilación).
 
 ### Subir el proyecto a GitHub
@@ -156,8 +159,9 @@ git push -u origin main
 ### Generar el APK
 
 1. El workflow **Build APK** se dispara automáticamente con cada *push* a la rama `main` (también se puede lanzar manualmente desde **Actions → Build APK → Run workflow**).
-2. El workflow configura Node 20, Java 17 (Temurin) y Capacitor 6 con el plugin `@capacitor/share`, verifica el SDK de Android preinstalado en el runner, copia `index.html` a `www/`, añade la plataforma Android y ejecuta `./gradlew assembleDebug`.
-3. Al terminar, abre la ejecución del workflow en la pestaña **Actions** y descarga el *artifact* **`FinanBCV-apk`**, que contiene `app-debug.apk`.
+2. El workflow configura Node 22, Java 21 (Temurin) y Capacitor 8 con los plugins `@capacitor/share` y `@capacitor-community/admob`, verifica el SDK de Android 36 (`android-36` y `build-tools/36.0.0`) preinstalado en el runner, copia `index.html` y `tasas.json` a `www/`, genera `www/ads-config.js`, añade la plataforma Android, configura AdMob en el manifest y ejecuta `./gradlew assembleDebug`.
+3. Antes de subir el artifact, el workflow verifica dentro del APK que existan el meta-data de AdMob, el plugin en `capacitor.plugins.json` y `ads-config.js`.
+4. Al terminar, abre la ejecución del workflow en la pestaña **Actions** y descarga el *artifact* **`FinanBCV-apk`**, que contiene `app-debug.apk`.
 
 ### Instalar el APK
 
@@ -175,11 +179,53 @@ git push -u origin main
 * En el APK las tasas también se descargan de GitHub al abrir la app y al pulsar **Actualizar**; el `www/tasas.json` que copia el workflow ya no se usa para actualizar.
 * Los datos (`finanbcv_credits`, `finanbcv_settings`, `finanbcv_theme`) se guardan en el `localStorage` del WebView del teléfono; no hay sincronización entre dispositivos.
 * El historial de pagos se guarda dentro de `finanbcv_credits` (campo `payments`). Los créditos creados antes de esta versión no tienen detalle de pagos: su historial muestra un resumen "pagos anteriores sin detalle".
-* El workflow copia `index.html` y `tasas.json` a `www/`; la carpeta generada no se versiona ni se edita a mano.
+* **Anuncios:** el banner y los interstitial necesitan internet y Google Play Services; si faltan, la app funciona igual, sin anuncios. Un APK instalado a mano **no genera ingresos**: AdMob solo sirve anuncios reales cuando la app está publicada en Google Play y verificada (ver la sección de monetización).
+* El workflow copia `index.html` y `tasas.json` a `www/` y genera `www/ads-config.js`; la carpeta generada no se versiona ni se edita a mano.
 
 ### Plan B si falla el build de Capacitor
 
 Si el build de Android fallara en CI, el workflow puede sustituirse por uno que publique como *artifact* un `.zip` con `index.html`; la app sigue funcionando como web (o se puede empaquetar manualmente con Capacitor).
+
+---
+
+## 💰 Monetización con AdMob
+
+La app integra AdMob con el plugin comunitario `@capacitor-community/admob` (Google Mobile Ads SDK). La lógica vive en `index.html` (módulo `window.Ads`) y solo se activa cuando la página corre dentro del APK; en el navegador no hace nada.
+
+### Formatos y ubicación
+
+* **Banner adaptativo** (`ADAPTIVE_BANNER`) anclado abajo, visible solo en la pantalla principal. Se oculta mientras hay un modal abierto (Ajustes, Compartir o Historial) para no tapar botones, y se reanuda al cerrarlo. El alto real que informa AdMob se reserva con la variable CSS `--admob-banner-h`, así no tapa la última tarjeta ni el toast.
+* **Interstitial** en dos cortes naturales: al registrar un crédito y al cerrar el comprobante después de abonar una cuota. Nunca aparece encima de un modal ni al abrir la app; hay un límite de **1 cada 3 minutos** y se precarga para no hacer esperar.
+* **Consentimiento (UMP):** al iniciar se consulta el estado de consentimiento; si es obligatorio se muestra el formulario de Google y, si la persona no autoriza anuncios, no se solicita ninguno. Cuando UMP exige un punto de acceso de privacidad, aparece el botón **Privacidad y anuncios** en Ajustes.
+* **Sin anuncios en el comprobante:** el banner se oculta antes de abrir el modal de Pago Móvil y el interstitial se difiere hasta que se cierra, para evitar clics accidentales.
+
+### Anuncios de prueba vs. anuncios reales
+
+* Por defecto el build usa los **IDs de prueba de Google** (`ca-app-pub-3940256099942544~...`), que nunca generan tráfico inválido ni ingresos. Sirven para verificar que todo funciona.
+* Para usar tus IDs reales, define en el repositorio (**Settings → Secrets and variables → Actions → Variables**) las variables:
+  * `ADMOB_APP_ID` — App ID de AdMob (formato `ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX`).
+  * `ADMOB_BANNER_ID` y `ADMOB_INTERSTITIAL_ID` — IDs de las unidades (formato `ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX`).
+  * `ADMOB_TEST_MODE` — `false` para producción.
+* Con `ADMOB_TEST_MODE=false` los tres IDs son obligatorios; `scripts/admob-build-config.mjs` falla el build si falta alguno o tiene formato inválido, para no publicar IDs de prueba mezclados.
+* Para probar con anuncios reales en tu propio teléfono sin generar tráfico inválido, busca el ID de test en `adb logcat` y regístralo con `initialize({ testingDevices: [...], initializeForTesting: true })` en el módulo `window.Ads`.
+
+### Para que AdMob pague (checklist de publicación)
+
+AdMob no monetiza un APK instalado a mano: exige que la app esté **publicada en Google Play (o App Store)** y verificada. Pasos:
+
+1. **Google Play Console:** ficha de la app (`com.finanbcv.app`), política de privacidad pública, formulario de **Data safety** (AdMob recoge identificadores del dispositivo para publicidad), declaración **"contiene anuncios"**, clasificación de contenido y prueba cerrada con **12 testers durante 14 días** (cuentas personales creadas después del 13-11-2023).
+2. **APK/AAB de producción:** firmar con un *keystore* propio (guardar el keystore y `key.properties` fuera del repo), subir el AAB con Play App Signing y compilar con los IDs reales.
+3. **app-ads.txt:** publicar el archivo en la raíz del dominio de la web del desarrollador que figure en la ficha de Play (por ejemplo, un repo `linuxcoro.github.io` con `app-ads.txt` en la raíz), con la línea `google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0`, y verificarlo desde AdMob.
+4. **AdMob:** crear la app, crear las unidades de banner e interstitial, vincular la ficha de Play, pedir la verificación con `app-ads.txt` y esperar la revisión de *app readiness*.
+5. **Cobro:** completar dirección y PIN de verificación, datos fiscales (W-8BEN para no residentes en EE. UU.) y método de pago; AdMob paga a partir de un umbral de 100 USD.
+
+> Mientras la app no esté publicada y verificada, AdMob puede no servir anuncios reales aunque el código esté listo. El APK debug con IDs de prueba sirve para validar la integración.
+
+### Requisitos que ya cubre el repo para publicar
+
+* `targetSdk 36` (exigido por Play a las apps nuevas desde el 31-08-2026) vía Capacitor 8.
+* `INTERNET` en el manifest (Capacitor lo incluye) y meta-data `com.google.android.gms.ads.APPLICATION_ID`.
+* La firma de producción, el AAB y el `app-ads.txt` quedan pendientes para la fase de publicación.
 
 ---
 
