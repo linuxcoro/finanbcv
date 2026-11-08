@@ -254,7 +254,7 @@
             <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
                 <h3 class="font-bold text-base flex items-center space-x-2">
                     <i data-lucide="share-2" class="w-5 h-5 text-brand-600"></i>
-                    <span>Salida para WhatsApp</span>
+                    <span>Compartir Pago Móvil</span>
                 </h3>
                 <button onclick="toggleModal('modalShare')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                     <i data-lucide="x" class="w-5 h-5"></i>
@@ -263,7 +263,7 @@
 
             <!-- Previsualización del Texto -->
             <div class="space-y-1">
-                <label class="block text-xs font-medium text-slate-500 dark:text-slate-400">Texto formateado a enviar:</label>
+                <label class="block text-xs font-medium text-slate-500 dark:text-slate-400">Texto formateado (elige WhatsApp, Telegram, SMS o cualquier red social):</label>
                 <div id="sharePreview" class="p-3 bg-slate-100 dark:bg-slate-900 rounded-2xl text-xs font-mono whitespace-pre-wrap border border-slate-200 dark:border-slate-700 max-h-56 overflow-y-auto text-slate-700 dark:text-slate-300">
                     <!-- Texto generado dinámicamente -->
                 </div>
@@ -276,7 +276,7 @@
                 </button>
                 <button onclick="executeNativeShare()" class="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md transition flex items-center justify-center space-x-1.5">
                     <i data-lucide="send" class="w-4 h-4"></i>
-                    <span>Compartir App</span>
+                    <span>Compartir en redes</span>
                 </button>
             </div>
         </div>
@@ -820,7 +820,7 @@
         }
 
         // --- MÓDULO GENERADOR Y SALIDA DE PAGO MÓVIL ---
-        function prepareShareMessage(id) {
+        async function prepareShareMessage(id) {
             if (!settings.bank || !settings.id || !settings.phone) {
                 showToast('Primero configura tus datos de Pago Móvil');
                 toggleModal('modalSettings');
@@ -854,7 +854,14 @@
 
             currentShareText = text;
             document.getElementById('sharePreview').innerText = text;
-            toggleModal('modalShare');
+
+            // El botón Pago Móvil abre directamente el selector de apps para
+            // compartir por cualquier red social. Si no está disponible, se
+            // muestra el modal con el texto listo para copiar.
+            const compartido = await compartirTexto(text);
+            if (!compartido) {
+                toggleModal('modalShare');
+            }
         }
 
         function copyToClipboard() {
@@ -874,19 +881,47 @@
             document.body.removeChild(textArea);
         }
 
-        function executeNativeShare() {
-            if (!currentShareText) return;
+        // Comparte el texto con el selector nativo de apps (WhatsApp, Telegram,
+        // Instagram, SMS, correo…). Devuelve true si el usuario completó o
+        // canceló el selector, y false si no hay forma de compartir.
+        async function compartirTexto(texto) {
+            const titulo = 'Pago Móvil - FinanBCV';
 
+            // 1) APK: plugin nativo @capacitor/share (Android Intent.ACTION_SEND).
+            const pluginShare = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share;
+            if (pluginShare && typeof pluginShare.share === 'function') {
+                try {
+                    await pluginShare.share({
+                        title: titulo,
+                        text: texto,
+                        dialogTitle: 'Compartir Pago Móvil'
+                    });
+                    return true;
+                } catch (error) {
+                    if (error && /cancel/i.test(String(error.message || error))) return true;
+                    // Si el plugin falla, se intenta Web Share o el modal.
+                }
+            }
+
+            // 2) Navegadores con Web Share API.
             if (navigator.share) {
-                navigator.share({
-                    title: 'Pago Móvil - FinanBCV',
-                    text: currentShareText
-                }).catch(() => {
-                    // Si cancela la acción nativa no muestra error estricto
-                });
-            } else {
+                try {
+                    await navigator.share({ title: titulo, text: texto });
+                    return true;
+                } catch (error) {
+                    if (error && error.name === 'AbortError') return true;
+                }
+            }
+
+            return false;
+        }
+
+        async function executeNativeShare() {
+            if (!currentShareText) return;
+            const compartido = await compartirTexto(currentShareText);
+            if (!compartido) {
                 copyToClipboard();
-                showToast('Web Share no disponible. Texto copiado.');
+                showToast('Compartir no disponible. Texto copiado.');
             }
         }
 
