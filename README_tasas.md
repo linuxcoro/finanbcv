@@ -16,6 +16,7 @@ HTML y exponerlas como API JSON.
 | `test_bcv_scraper.py` | Pruebas sin red del parser y del formato de números. |
 | `tasas.json` | Últimas tasas USD/EUR generadas por `bcv_scraper.py`. Lo consume `index.html`. |
 | `tasas.html` | Ejemplo generado: página estática con las tasas del día. |
+| `.github/workflows/actualizar-tasas.yml` | Workflow de GitHub Actions que regenera `tasas.json` cada hora y lo commitea. |
 
 `index.html` (la app FinanBCV) muestra las tasas de USD y EUR desde
 `tasas.json` y tiene un botón **Actualizar**; ver la última sección.
@@ -58,6 +59,28 @@ Salida:
 
 El HTML generado con `--html` es autónomo: se abre directamente en el
 navegador sin necesidad de servidor.
+
+## Actualización automática (GitHub Actions)
+
+El repositorio incluye `.github/workflows/actualizar-tasas.yml`, que **cada
+hora** ejecuta el scraper y actualiza `tasas.json` dentro del mismo
+repositorio:
+
+1. Corre con `schedule` (`cron: '5 * * * *'`, UTC) y también a mano desde
+   **Actions → Actualizar tasas BCV → Run workflow**.
+2. Instala `requirements-tasas.txt`, ejecuta
+   `python3 bcv_scraper.py > tasas.json` y valida el JSON.
+3. Hace commit y push como `github-actions[bot]` solo si el archivo cambió
+   (mensaje `chore: actualizar tasas BCV`).
+4. Si el BCV falla, la ejecución queda en rojo y **no** se commitea: se
+   conserva la última tasa buena.
+
+Requiere **Settings → Actions → General → Workflow permissions → “Read and
+write permissions”**. Los commits de `tasas.json` no recompilan el APK (su
+workflow los ignora con `paths-ignore`).
+
+En local el flujo sigue siendo manual (`python3 bcv_scraper.py > tasas.json`);
+la automatización solo actúa cuando el proyecto está en GitHub.
 
 ## 2. Servidor con HTML + API
 

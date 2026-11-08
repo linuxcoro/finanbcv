@@ -51,6 +51,7 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 | `plan_de_mejoras.md` | Roadmap y bitácora de mejoras del proyecto. |
 | `capacitor.config.json` | Configuración e identidad de la app para Capacitor. |
 | `.github/workflows/build-apk.yml` | Workflow de GitHub Actions que compila el APK debug. |
+| `.github/workflows/actualizar-tasas.yml` | Workflow de GitHub Actions que regenera `tasas.json` cada hora y lo commitea. |
 
 ---
 
@@ -123,6 +124,12 @@ python3 bcv_scraper.py > tasas.json 2>/dev/null
 La app vuelve a leerlo al pulsar **Actualizar**. Si la sirves con
 `python3 bcv_server.py` (en <http://127.0.0.1:8000/app>), el botón ejecuta el
 scraper directamente. Guía completa en [`README_tasas.md`](README_tasas.md).
+
+> En GitHub, el workflow **Actualizar tasas BCV**
+> (`.github/workflows/actualizar-tasas.yml`) ejecuta ese mismo comando **cada
+> hora**, valida el JSON y hace commit de `tasas.json` como
+> `github-actions[bot]`; si el BCV falla, se conserva la última tasa buena. En
+> local el comando sigue siendo manual.
 
 ---
 

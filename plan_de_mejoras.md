@@ -1,10 +1,10 @@
 # Plan de mejoras — FinanBCV
 
-**Fecha:** 2026-11-08 · **Estado global:** ✅ 5 de 5 pasos ejecutados en local (pendiente el push a GitHub) · Historial de pagos: ✅ añadido como mejora posterior · Pago inicial: ✅ eliminado
+**Fecha:** 2026-11-08 · **Estado global:** ✅ 5 de 5 pasos ejecutados en local · 🟡 pendiente: crear el repositorio en GitHub, activar la automatización horaria y generar el APK · Historial de pagos: ✅ añadido como mejora posterior · Pago inicial: ✅ eliminado
 **Archivo de la app:** `index.html` (602 líneas, SPA de un solo archivo)
 **Documentación:** `documentaci_n_de_la_aplicaci_n.md`
 
-> Este documento es el plan de trabajo **por pasos**. Los pasos 1–5 están ejecutados en local (ver Bitácora); solo queda el `git push` a GitHub, que requiere las credenciales del usuario. El **workflow de GitHub** fue deliberadamente el último, por pedido del usuario. Al cerrar cada paso se marca el estado (`✅ hecho`), se actualiza la tabla y se añade una línea a la Bitácora.
+> Este documento es el plan de trabajo **por pasos**. Los pasos 1–5 están ejecutados en local (ver Bitácora); falta crear el repositorio en GitHub, subir `main` y dejar que los workflows generen la automatización horaria de las tasas y el APK, lo que requiere las credenciales del usuario. El **workflow de GitHub** fue deliberadamente el último, por pedido del usuario. Al cerrar cada paso se marca el estado (`✅ hecho`), se actualiza la tabla y se añade una línea a la Bitácora.
 
 ---
 
@@ -19,6 +19,7 @@ Se considera terminado cuando:
 3. El mensaje de Pago Móvil indica la **parte/cuota correcta** ("Parte 2 de 3"; "Parte a pagar: 1 de N" si aún no hay abonos) y ya no queda la variable muerta `currentInstallmentNum`.
 4. La documentación refleja la realidad: nombre del archivo, funcionalidad y workflow existente.
 5. Existe `.github/workflows/build-apk.yml` que produce un **APK debug** descargable como artifact, validado sintácticamente en local.
+6. El repositorio `finanbcv` existe en GitHub y `main` está subido; el workflow **Actualizar tasas BCV** refresca `tasas.json` **cada hora** sin disparar builds del APK, y el workflow **Build APK** deja el artifact `FinanBCV-apk` descargable.
 
 ## 2. Hechos verificados (base del plan — estado previo a la ejecución)
 
@@ -36,7 +37,7 @@ Se considera terminado cuando:
 | 2 | Mostrar la inicial pagada en la tarjeta del crédito | ✅ hecho |
 | 3 | Número de parte correcto en el mensaje de Pago Móvil | ✅ hecho |
 | 4 | Actualizar `documentaci_n_de_la_aplicaci_n.md` | ✅ hecho |
-| 5 | **Último:** workflow de GitHub Actions para el APK | ✅ hecho en local / pendiente el push |
+| 5 | **Último:** crear el repositorio, automatizar las tasas y generar el APK | 🟡 listo en local / falta GitHub |
 
 ---
 
@@ -104,9 +105,11 @@ Se considera terminado cuando:
 
 **Aceptación:** ninguna referencia al nombre viejo; la guía coincide con los archivos reales del repositorio.
 
-## Paso 5 — ÚLTIMO: workflow de GitHub Actions para el APK
+## Paso 5 — ÚLTIMO: crear el repositorio, automatizar las tasas y generar el APK
 
-**Archivos nuevos:** `.github/workflows/build-apk.yml` y `capacitor.config.json` (identidad de la app versionada).
+**Archivos implicados:** `.github/workflows/actualizar-tasas.yml` (nuevo), `.github/workflows/build-apk.yml` (ajuste del disparador) y `capacitor.config.json` (ya creado, identidad de la app versionada). El orden es **A → B → C**: sin repositorio en GitHub no hay dónde ejecutar los workflows.
+
+**Estado de partida (verificado):** ambos workflows están creados y se commitean al cerrar el paso; `main` tiene todo el historial y `git remote -v` sigue vacío. Falta crear el repositorio y hacer el push; después GitHub ejecutará la automatización horaria y el build del APK.
 
 `capacitor.config.json`:
 
@@ -119,39 +122,73 @@ Se considera terminado cuando:
 }
 ```
 
-`build-apk.yml`:
+### Fase A — Crear el repositorio en GitHub y subir `main`
 
-- Disparadores: `push` a `main` y `workflow_dispatch`. `permissions: contents: read`.
-- Runner `ubuntu-latest`, con estos pasos en orden:
-  1. `actions/checkout@v4`
-  2. `actions/setup-node@v4` con Node 20.
-  3. `actions/setup-java@v4` con temurin **17** (requisito de Capacitor 6).
-  4. `android-actions/setup-android@v3`.
-  5. `npm init -y` y `npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6` (versiones fijadas para no depender de Java 21).
-  6. `mkdir -p www && cp index.html www/index.html`.
-  7. `npx cap add android && npx cap sync android`.
-  8. `cd android && chmod +x gradlew && ./gradlew assembleDebug --no-daemon`.
-  9. `actions/upload-artifact@v4` publicando `android/app/build/outputs/apk/debug/app-debug.apk` como `FinanBCV-apk`.
-- Validación local: parsear el YAML con PyYAML, revisar la indentación de las claves de Actions y confirmar que no hay secretos.
-- Commit: `ci: compilar APK Android con Capacitor en GitHub Actions`.
-- Cierre: marcar este paso como "hecho en local / pendiente el push" y añadir la lista manual para el usuario:
+Prerrequisitos: cuenta de GitHub y autenticación. No hay `gh` instalado; la ruta principal es la web.
+
+1. Abrir `https://github.com/new` con:
+   - **Owner:** `<usuario>` · **Repository name:** `finanbcv`.
+   - **Visibilidad:** **Public** (minutos de Actions gratis); un repo privado también funciona, con la cuota mensual de minutos.
+   - **Sin** README, `.gitignore` ni licencia: el repositorio local ya tiene el historial y así se evita un commit inicial que estorbe.
+2. Enlazar y subir `main` (autenticación HTTPS con un PAT clásico con scopes `repo` + `workflow`, o por SSH):
+
+   ```bash
+   git remote add origin https://github.com/<usuario>/finanbcv.git
+   git push -u origin main
+   ```
+
+   El scope `workflow` es necesario porque el push incluye `.github/workflows/*`.
+3. Ruta alternativa con `gh` (si se instala): `gh auth login` y
+   `gh repo create finanbcv --public --source=. --remote=origin --push`.
+4. Verificar: `git remote -v`, `git status -sb`, `git branch -vv` (`main` con upstream).
+5. **Settings → Actions → General → Workflow permissions → “Read and write permissions”** y guardar. Es imprescindible para que la Fase B pueda hacer commit y push con `GITHUB_TOKEN`.
+
+> Si el repo se creó con README: `git pull --rebase origin main` y reintentar `git push -u origin main`. Si el remote ya existe con otra URL: `git remote set-url origin …`.
+
+### Fase B — La Automatización
+
+**Archivo nuevo:** `.github/workflows/actualizar-tasas.yml`.
+
+- Disparadores: `schedule` con `cron: '5 * * * *'` (cada hora, minuto 5, **UTC**) y `workflow_dispatch` para ejecutarlo a mano desde **Actions → Actualizar tasas BCV → Run workflow**.
+- `permissions: contents: write` y `concurrency` (`actualizar-tasas`) para que dos ejecuciones no se pisen. Sin secretos: usa el `GITHUB_TOKEN` del repositorio.
+- Pasos:
+  1. `actions/checkout@v4`.
+  2. `actions/setup-python@v5` con Python 3.10 y caché de pip sobre `requirements-tasas.txt`.
+  3. `pip install -r requirements-tasas.txt`.
+  4. **`python3 bcv_scraper.py > tasas.json`** (el scraper imprime el JSON por stdout y los avisos por stderr) seguido de `python3 -m json.tool tasas.json > /dev/null` para no aceptar una salida vacía o corrupta.
+  5. Commit y push como `github-actions[bot]`: solo si `tasas.json` cambió; mensaje `chore: actualizar tasas BCV`.
+- Si el BCV falla o cambia el HTML, el scraping devuelve código 1 y el step se marca en rojo **sin** commitear: se conserva la última tasa buena y el error queda visible en Actions.
+- El workflow debe estar en `main` para que el `schedule` se active; el primer run puede forzarse con **Run workflow**.
+- Con los campos `obtenido_en`/`actualizado_texto` el archivo cambia en cada ejecución, así que se hace **un commit por hora** (≈8.760/año), que es lo pedido: `tasas.json` siempre refleja la última consulta. Si se prefiere no llenar el historial, basta comparar solo `usd`/`eur`/`fecha_valor` y omitir el commit cuando la tasa no cambie.
+- Los commits del bot **no** recompilan el APK: la Fase C ignora `tasas.json` y `**.md`.
+- Aviso: GitHub puede retrasar el cron; el horario es UTC (irrelevante al ser cada hora).
+
+### Fase C — Generar el APK con GitHub Actions
+
+**Archivo:** `.github/workflows/build-apk.yml`.
+
+- Disparadores: `push` a `main` (ignorando `tasas.json` y `**.md`) y `workflow_dispatch`.
+- Runner `ubuntu-latest`: checkout, Node 20, Java 17 (temurin), Android SDK, Capacitor 6 fijado, copia de `index.html` y `tasas.json` a `www/`, `npx cap add android && npx cap sync android`, `./gradlew assembleDebug --no-daemon`.
+- El APK queda como artifact **`FinanBCV-apk`** (`app-debug.apk`) en la pestaña **Actions**, dentro de la ejecución del workflow.
+- Seguimiento y descarga:
 
   ```bash
-  git remote add origin https://github.com/<usuario>/finanbcv.git
-  git push -u origin main
+  gh run list --workflow=build-apk.yml
+  gh run watch
+  gh run download --name FinanBCV-apk
   ```
 
-  Después: pestaña **Actions** → workflow "Build APK" → descargar el artifact → instalar.
+  Desde la web: **Actions → Build APK → última ejecución → Artifacts → FinanBCV-apk**.
+- Instalación: descomprimir el artifact, copiar `app-debug.apk` al teléfono y permitir **fuentes desconocidas**, o `adb install -r app-debug.apk`. Es un APK **debug** (sin firma de producción).
+- El APK lleva la foto de `tasas.json` del momento del build; para refrescarla, relanzar el workflow a mano.
 
-  **Estado:** ✅ hecho en local / pendiente el push (requiere las credenciales del usuario).
+**Plan B:** si el build de Capacitor fallara en CI, publicar como artifact un `.zip` con `index.html`; no bloquea las fases A/B.
 
-**Plan B:** si el build de Capacitor fallara en CI, publicar como artifact un `.zip` con `index.html` (no bloquea los pasos 1–4).
-
-**Aceptación:** el YAML parsea sin errores, la estructura de pasos es válida y el workflow queda listo para ejecutarse al hacer push.
+**Aceptación:** el repositorio existe con `main` subido y permisos de escritura para workflows; el workflow “Actualizar tasas BCV” corre cada hora (o a mano), commitea un `tasas.json` válido y no dispara el APK; el workflow “Build APK” termina en verde y deja el artifact `FinanBCV-apk` descargable.
 
 ---
 
-## 4. Verificación (aplicable a los pasos 2–4)
+## 4. Verificación (pasos 2–5)
 
 - **Sintaxis del JavaScript inline** (el script está embebido en el HTML, no hay archivo .js aparte):
 
@@ -166,6 +203,19 @@ Se considera terminado cuando:
   4. Segundo abono → "Parte 2 de 2" y estado "Pagado Total".
   5. Recargar la página y confirmar la persistencia de `finanbcv_credits`, `finanbcv_settings` y `finanbcv_theme`.
 - **Datos heredados:** probar con un crédito antiguo sin `initialPercent` en `localStorage` para validar el fallback.
+- **Validación de los workflows** (no se pueden ejecutar en local): parsear ambos YAML con PyYAML y comprobar su estructura:
+
+  ```bash
+  python3 - <<'PY'
+  import yaml
+
+  for archivo in ['.github/workflows/build-apk.yml', '.github/workflows/actualizar-tasas.yml']:
+      datos = yaml.safe_load(open(archivo))
+      print(archivo, 'OK', list(datos))
+  PY
+  ```
+
+  Además, revisar que `build-apk.yml` tenga `paths-ignore` para `tasas.json` y `**.md`, y que `actualizar-tasas.yml` tenga `contents: write`, el `cron: '5 * * * *'` y el comando `python3 bcv_scraper.py > tasas.json`.
 - **Grep de control:** `grep -rn "gestor_de_ventas_financiadas_bcv\|currentInstallmentNum" .` no debe devolver resultados en código/documentación (solo pueden quedar referencias históricas en este mismo plan).
 
 ## 5. Riesgos y reversión
@@ -174,7 +224,12 @@ Se considera terminado cuando:
 - Los cambios no alteran el esquema de `localStorage`: no hay migración ni pérdida de datos de créditos.
 - El APK depende de CDNs (sin internet no hay estilos ni iconos) y de versiones fijadas de Capacitor; se documenta como limitación y su fallo afecta solo a ese archivo.
 - No se modifica ni se elimina ningún crédito del usuario.
-- El push a GitHub requiere credenciales del usuario: el agente deja el commit local listo y documenta el comando.
+- La creación del repositorio, la autenticación y el push requieren credenciales del usuario: el agente deja todo listo en local y documenta los comandos; no se ejecuta sin autorización.
+- El workflow horario depende del BCV: si la página falla o cambia su HTML, la ejecución queda en rojo y **no** commitea, conservando la última tasa buena.
+- GitHub puede retrasar u omitir ejecuciones del `schedule` y las desactiva tras 60 días sin actividad; los commits del bot mantienen el repo activo y el workflow se puede relanzar a mano.
+- En un repo privado los minutos de Actions son limitados; el APK solo se compila con cambios de código o a mano (la Fase C ignora `tasas.json` y `**.md` para no recompilar cada hora).
+- Los commits horarios generan mucho historial (≈8.760/año); se puede reducir comparando solo `usd`/`eur`/`fecha_valor` antes de commitear.
+- Reversión de la automatización: borrar `.github/workflows/actualizar-tasas.yml` (o desactivarla en Actions) y hacer push.
 
 ## 6. Bitácora
 
@@ -185,11 +240,12 @@ Se considera terminado cuando:
 | 2026-11-08 | 2 | `renderCredits()` muestra la celda "Inicial (X%)" con `$X (Bs Y)` junto a "Total Venta" (fallback 0 % para créditos heredados) y "Monto por Cuota" pasa a fila `col-span-2`. Verificado con arnés Node sobre el JS inline: $100 al 30 % → `$30.00 (Bs 1.095,00)`; sin `initialPercent` → `$0.00 (Bs 0,00)`. |
 | 2026-11-08 | 3 | `prepareShareMessage()` elimina la variable muerta `currentInstallmentNum` y calcula `paidParts`; el mensaje muestra `🧾 *Parte a pagar:* paidParts+1 de N` o `Parte N de N` al liquidar. Verificado: 3 partes con 1 abono → "Parte a pagar: 2 de 3" y "Te restan 2 parte(s)"; sin abonos → "1 de N"; liquidado → "Parte 3 de 3". Se corrigieron también el comando de extracción JS del §4 y el smoke para que coincidan con la numeración "Parte a pagar". |
 | 2026-11-08 | 4 | `documentaci_n_de_la_aplicaci_n.md` actualizada: nombre `index.html`, características de la inicial en la tarjeta y del comprobante automático al abonar, estructura del repositorio, guía APK reescrita (workflow, disparadores, artifact en Actions, instalación por fuentes desconocidas o `adb`), limitación de CDN y referencia al plan como roadmap. Verificado: sin referencias al nombre viejo. |
-| 2026-11-08 | 5 | `capacitor.config.json` y `.github/workflows/build-apk.yml` creados: disparadores `push` a `main` + `workflow_dispatch`, `permissions: contents: read`, Ubuntu + Node 20 + Java 17 (temurin) + Android SDK, Capacitor 6 con versiones fijadas, copia de `index.html` a `www/`, `assembleDebug` y artifact `FinanBCV-apk`. Validado en local con PyYAML y comprobación de estructura (24/24 PASS, sin secretos). **Pendiente solo el push** (`git remote add origin …` + `git push -u origin main`). |
+| 2026-11-08 | 5 | `capacitor.config.json` y `.github/workflows/build-apk.yml` creados: disparadores `push` a `main` + `workflow_dispatch`, `permissions: contents: read`, Ubuntu + Node 20 + Java 17 (temurin) + Android SDK, Capacitor 6 con versiones fijadas, copia de `index.html` a `www/`, `assembleDebug` y artifact `FinanBCV-apk`. Validado en local con PyYAML y comprobación de estructura (24/24 PASS, sin secretos). **Pendiente** crear el repositorio en GitHub y el push (`git remote add origin …` + `git push -u origin main`); ver Paso 5 reformulado. |
 | 2026-11-08 | Post-plan | **Historial de pagos por crédito:** campo aditivo `payments` en `finanbcv_credits`, botón "Historial de pagos (N)" en cada tarjeta y modal con la inicial + abonos (fecha, parte, $ y Bs), compatible con créditos heredados (resumen "pagos anteriores sin detalle"). Documentación actualizada. Commit `feat: mostrar historial de pagos por crédito`. |
 | 2026-11-08 | Post-plan | Se quitó la inicial del historial de pagos: ahora solo lista abonos de cuota y el total mostrado es el de cuotas. En ese momento la tarjeta aún mostraba la inicial. Documentación actualizada. Commit `fix: excluir la inicial del historial de pagos`. |
 | 2026-11-08 | Post-plan | Se eliminó el **% de pago inicial**: sin campo en el formulario, sin "Monto Inicial" en el resumen y sin celda "Inicial (X%)" en la tarjeta; el cálculo ahora financia el monto total (`cuota = totalUsd / partes`) y los créditos nuevos no guardan `initialPercent` (los antiguos se leen igual). Documentación actualizada. Commit `refactor: eliminar el % de pago inicial`. |
 | 2026-11-08 | Post-plan | **Tasas USD/EUR en la app:** `index.html` lee `tasas.json` y muestra tarjetas del dólar y del euro con botón **Actualizar** (usa `POST /api/actualizar` de `bcv_server.py` si está disponible; si no, relee el archivo; fallback a `localStorage`). La tasa del dólar se aplica a la calculadora sin pisar tasas personalizadas. `bcv_server.py` gana `/app`, `/tasas.json` y `POST /api/actualizar`; el workflow del APK copia `tasas.json` si existe. Documentación y `README_tasas.md` actualizados. |
+| 2026-11-08 | Paso 5 (reformulación) | Paso 5 reorganizado en tres fases: **A** crear el repositorio en GitHub y subir `main`; **B — La Automatización** con `.github/workflows/actualizar-tasas.yml` (cron horario, `python3 bcv_scraper.py > tasas.json`, validación JSON, commit del bot, `contents: write`); **C** generar el APK. `build-apk.yml` ignora `tasas.json` y `**.md` para no recompilar cada hora. `README_tasas.md` y `documentaci_n_de_la_aplicaci_n.md` actualizados. Pendiente: crear el repo y el push. |
 
 ## 7. Mejora posterior — Historial de pagos por crédito
 
