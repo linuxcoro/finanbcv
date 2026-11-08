@@ -30,8 +30,17 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Verificar Android SDK
+        run: |
+          set -euo pipefail
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          # Los runners ubuntu-latest ya traen el SDK con android-34 y build-tools 34.
+          test -n "${ANDROID_HOME:-}"
+          test -d "$ANDROID_HOME/platforms/android-34"
+          test -d "$ANDROID_HOME/build-tools/34.0.0"
+          ls "$ANDROID_HOME/platforms" | tr '\n' ' '; echo
+          ls "$ANDROID_HOME/build-tools" | tr '\n' ' '; echo
 
       - name: Install Capacitor 6
         run: |

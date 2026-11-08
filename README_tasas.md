@@ -37,7 +37,7 @@ pip install -r requirements-tasas.txt
 ```bash
 python3 bcv_scraper.py                 # imprime el JSON con USD y EUR
 python3 bcv_scraper.py --html tasas.html
-python3 bcv_scraper.py > tasas.json 2>/dev/null   # archivo que consume index.html
+python3 bcv_scraper.py > tasas.json 2>/dev/null   # copia local (la app usa GitHub)
 ```
 
 Salida:
