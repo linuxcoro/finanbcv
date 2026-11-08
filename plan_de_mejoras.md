@@ -187,14 +187,14 @@ Se considera terminado cuando:
 | 2026-11-08 | 4 | `documentaci_n_de_la_aplicaci_n.md` actualizada: nombre `index.html`, características de la inicial en la tarjeta y del comprobante automático al abonar, estructura del repositorio, guía APK reescrita (workflow, disparadores, artifact en Actions, instalación por fuentes desconocidas o `adb`), limitación de CDN y referencia al plan como roadmap. Verificado: sin referencias al nombre viejo. |
 | 2026-11-08 | 5 | `capacitor.config.json` y `.github/workflows/build-apk.yml` creados: disparadores `push` a `main` + `workflow_dispatch`, `permissions: contents: read`, Ubuntu + Node 20 + Java 17 (temurin) + Android SDK, Capacitor 6 con versiones fijadas, copia de `index.html` a `www/`, `assembleDebug` y artifact `FinanBCV-apk`. Validado en local con PyYAML y comprobación de estructura (24/24 PASS, sin secretos). **Pendiente solo el push** (`git remote add origin …` + `git push -u origin main`). |
 | 2026-11-08 | Post-plan | **Historial de pagos por crédito:** campo aditivo `payments` en `finanbcv_credits`, botón "Historial de pagos (N)" en cada tarjeta y modal con la inicial + abonos (fecha, parte, $ y Bs), compatible con créditos heredados (resumen "pagos anteriores sin detalle"). Documentación actualizada. Commit `feat: mostrar historial de pagos por crédito`. |
+| 2026-11-08 | Post-plan | Se quitó la inicial del historial de pagos: ahora solo lista abonos de cuota y el total mostrado es el de cuotas. El `initialPercent` sigue visible en la tarjeta. Documentación actualizada. Commit `fix: excluir la inicial del historial de pagos`. |
 
 ## 7. Mejora posterior — Historial de pagos por crédito
 
 **Estado:** ✅ hecho (mejora posterior a los pasos 1–5; no reabre el plan original).
 
-- Nuevo campo **aditivo** `payments` en cada crédito de `localStorage.finanbcv_credits`; los créditos antiguos se leen sin migración y muestran su inicial más un resumen "pagos anteriores sin detalle".
+- Nuevo campo **aditivo** `payments` en cada crédito de `localStorage.finanbcv_credits`; los créditos antiguos se leen sin migración y muestran un resumen "pagos anteriores sin detalle".
 - Botón **"Historial de pagos (N)"** en cada tarjeta → modal con cada abono de cuota, con fecha, número de parte y montos en `$` y `Bs`, además del total abonado en cuotas.
 - El flujo de **"Abonar Cuota" no cambia**: sigue registrando el abono y abriendo el comprobante de Pago Móvil; el historial se actualiza solo.
 - Documentación actualizada en `documentaci_n_de_la_aplicaci_n.md`.
 - Commit: `feat: mostrar historial de pagos por crédito`.
-| 2026-11-08 | Post-plan | Se quitó la inicial del historial de pagos: ahora solo lista abonos de cuota y el total mostrado es el de cuotas. El `initialPercent` sigue visible en la tarjeta. Documentación actualizada. Commit `fix: excluir la inicial del historial de pagos`. |
