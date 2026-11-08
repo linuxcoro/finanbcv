@@ -1,10 +1,10 @@
 # Plan de mejoras — FinanBCV
 
-**Fecha:** 2026-11-08 · **Estado global:** ✅ 5 de 5 pasos ejecutados en local · 🟡 pendiente: crear el repositorio en GitHub, activar la automatización horaria y generar el APK · Historial de pagos: ✅ añadido como mejora posterior · Pago inicial: ✅ eliminado
+**Fecha:** 2026-11-08 · **Estado global:** ✅ 5 de 5 pasos ejecutados en local · ✅ repositorio en GitHub (`linuxcoro/finanbcv`, público) con `main` subido · ✅ automatización horaria de tasas activa y con primer run verde · 🟡 pendiente: generar el APK (Fase C) · Historial de pagos: ✅ añadido como mejora posterior · Pago inicial: ✅ eliminado
 **Archivo de la app:** `index.html` (602 líneas, SPA de un solo archivo)
 **Documentación:** `documentaci_n_de_la_aplicaci_n.md`
 
-> Este documento es el plan de trabajo **por pasos**. Los pasos 1–5 están ejecutados en local (ver Bitácora); falta crear el repositorio en GitHub, subir `main` y dejar que los workflows generen la automatización horaria de las tasas y el APK, lo que requiere las credenciales del usuario. El **workflow de GitHub** fue deliberadamente el último, por pedido del usuario. Al cerrar cada paso se marca el estado (`✅ hecho`), se actualiza la tabla y se añade una línea a la Bitácora.
+> Este documento es el plan de trabajo **por pasos**. Los pasos 1–5 están ejecutados en local (ver Bitácora); el repositorio ya está en GitHub con `main` subido (Fase A) y la automatización horaria de las tasas está activa y verificada con un primer run verde (Fase B). Falta solo la Fase C (generar el APK). El **workflow de GitHub** fue deliberadamente el último, por pedido del usuario. Al cerrar cada paso se marca el estado (`✅ hecho`), se actualiza la tabla y se añade una línea a la Bitácora.
 
 ---
 
@@ -37,7 +37,7 @@ Se considera terminado cuando:
 | 2 | Mostrar la inicial pagada en la tarjeta del crédito | ✅ hecho |
 | 3 | Número de parte correcto en el mensaje de Pago Móvil | ✅ hecho |
 | 4 | Actualizar `documentaci_n_de_la_aplicaci_n.md` | ✅ hecho |
-| 5 | **Último:** crear el repositorio, automatizar las tasas y generar el APK | 🟡 listo en local / falta GitHub |
+| 5 | **Último:** crear el repositorio, automatizar las tasas y generar el APK | 🟡 Fases A y B ✅ (repo subido + automatización activa) · falta Fase C (APK) |
 
 ---
 
@@ -109,7 +109,7 @@ Se considera terminado cuando:
 
 **Archivos implicados:** `.github/workflows/actualizar-tasas.yml` (nuevo), `.github/workflows/build-apk.yml` (ajuste del disparador) y `capacitor.config.json` (ya creado, identidad de la app versionada). El orden es **A → B → C**: sin repositorio en GitHub no hay dónde ejecutar los workflows.
 
-**Estado de partida (verificado):** ambos workflows están creados y se commitean al cerrar el paso; `main` tiene todo el historial y `git remote -v` sigue vacío. Falta crear el repositorio y hacer el push; después GitHub ejecutará la automatización horaria y el build del APK.
+**Estado actual (2026-11-08):** Fases **A** y **B** ejecutadas. El repositorio público `linuxcoro/finanbcv` existe, `origin` apunta a `git@github.com:linuxcoro/finanbcv.git` y `main` sigue su upstream con todo el historial. El workflow **Actualizar tasas BCV** quedó registrado y activo; su primer run (`workflow_dispatch`) terminó en verde y commiteó `tasas.json` como `github-actions[bot]` sin disparar el APK. Falta la Fase **C** (build del APK).
 
 `capacitor.config.json`:
 
@@ -246,6 +246,8 @@ Prerrequisitos: cuenta de GitHub y autenticación. No hay `gh` instalado; la rut
 | 2026-11-08 | Post-plan | Se eliminó el **% de pago inicial**: sin campo en el formulario, sin "Monto Inicial" en el resumen y sin celda "Inicial (X%)" en la tarjeta; el cálculo ahora financia el monto total (`cuota = totalUsd / partes`) y los créditos nuevos no guardan `initialPercent` (los antiguos se leen igual). Documentación actualizada. Commit `refactor: eliminar el % de pago inicial`. |
 | 2026-11-08 | Post-plan | **Tasas USD/EUR en la app:** `index.html` lee `tasas.json` y muestra tarjetas del dólar y del euro con botón **Actualizar** (usa `POST /api/actualizar` de `bcv_server.py` si está disponible; si no, relee el archivo; fallback a `localStorage`). La tasa del dólar se aplica a la calculadora sin pisar tasas personalizadas. `bcv_server.py` gana `/app`, `/tasas.json` y `POST /api/actualizar`; el workflow del APK copia `tasas.json` si existe. Documentación y `README_tasas.md` actualizados. |
 | 2026-11-08 | Paso 5 (reformulación) | Paso 5 reorganizado en tres fases: **A** crear el repositorio en GitHub y subir `main`; **B — La Automatización** con `.github/workflows/actualizar-tasas.yml` (cron horario, `python3 bcv_scraper.py > tasas.json`, validación JSON, commit del bot, `contents: write`); **C** generar el APK. `build-apk.yml` ignora `tasas.json` y `**.md` para no recompilar cada hora. `README_tasas.md` y `documentaci_n_de_la_aplicaci_n.md` actualizados. Pendiente: crear el repo y el push. |
+| 2026-11-08 | Paso 5 · Fase A | Repositorio público `linuxcoro/finanbcv` creado en la web (sin README, `.gitignore` ni licencia) y `main` subido por SSH, porque no hay `gh` ni token en la máquina. `origin` = `git@github.com:linuxcoro/finanbcv.git`, `main` con upstream (`## main...origin/main`) y los 14 commits en el remoto; ambos workflows registrados y en estado `active`. Nota: el push inicial no generó evento de Actions (repo creado segundos antes), por eso el primer run de la Fase B se forzó a mano. |
+| 2026-11-08 | Paso 5 · Fase B | Automatización verificada de punta a punta: `actualizar-tasas.yml` ejecutado con `workflow_dispatch` desde Actions → run en verde que commiteó `tasas.json` como `github-actions[bot]` (`chore: actualizar tasas BCV`, commit `c67d705`) con JSON válido (`usd 897.5383`, `eur 1001.18602288`, fecha valor 2026-11-09) y **sin** disparar el build del APK. Los mismos pasos se probaron en local con el scraper real. Queda activo el cron `5 * * * *` (cada hora, minuto 5 UTC). |
 
 ## 7. Mejora posterior — Historial de pagos por crédito
 
