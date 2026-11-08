@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tasas BCV · Dólar y Euro</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fondo: #f2f5f9;
+    --tarjeta: #ffffff;
+    --borde: #e2e8f0;
+    --texto: #0f172a;
+    --texto-suave: #5b6b7f;
+    --verde: #0f9d58;
+    --verde-suave: #e7f6ee;
+    --azul: #2563eb;
+    --azul-suave: #e9f0ff;
+    --sombra: 0 10px 30px rgba(15, 23, 42, .08);
+    --radio: 20px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #0b1220;
+      --tarjeta: #121b2c;
+      --borde: #243147;
+      --texto: #eef3fb;
+      --texto-suave: #9fb0c7;
+      --verde: #34d399;
+      --verde-suave: rgba(52, 211, 153, .12);
+      --azul: #60a5fa;
+      --azul-suave: rgba(96, 165, 250, .12);
+      --sombra: 0 10px 30px rgba(0, 0, 0, .35);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(1100px 500px at 15% -10%, rgba(37, 99, 235, .12), transparent 60%),
+      radial-gradient(900px 450px at 110% 5%, rgba(15, 157, 88, .12), transparent 60%),
+      var(--fondo);
+    color: var(--texto);
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 18px 28px;
+  }
+  .contenedor { width: 100%; max-width: 860px; }
+
+  .cabecera { text-align: center; margin-bottom: 30px; }
+  .etiqueta {
+    margin: 0 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--azul);
+  }
+  h1 { margin: 0; font-size: clamp(28px, 6vw, 40px); letter-spacing: -.02em; }
+  .subtitulo { margin: 10px auto 0; max-width: 520px; color: var(--texto-suave); font-size: 15px; line-height: 1.5; }
+  .sellos { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; }
+  .sello {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 12px; border: 1px solid var(--borde); border-radius: 999px;
+    background: var(--tarjeta); color: var(--texto-suave);
+    font-size: 12px; font-weight: 600;
+  }
+  .sello::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--verde); }
+  .sello.fallo::before { background: #f59e0b; }
+  .sello.estatica::before { background: var(--texto-suave); }
+
+  .aviso {
+    margin: 0 0 18px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.5;
+    border: 1px solid transparent;
+  }
+  .aviso.error { background: #fdecec; border-color: #f5b5b5; color: #991b1b; }
+  .aviso.advertencia { background: #fef6e6; border-color: #f3cf8a; color: #8a5a09; }
+  @media (prefers-color-scheme: dark) {
+    .aviso.error { background: rgba(248, 113, 113, .12); border-color: rgba(248, 113, 113, .35); color: #fca5a5; }
+    .aviso.advertencia { background: rgba(251, 191, 36, .1); border-color: rgba(251, 191, 36, .3); color: #fcd34d; }
+  }
+  .oculto { display: none !important; }
+
+  .tarjetas {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+  @media (max-width: 620px) { .tarjetas { grid-template-columns: 1fr; } }
+
+  .tarjeta {
+    position: relative;
+    overflow: hidden;
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    box-shadow: var(--sombra);
+    padding: 22px 22px 18px;
+  }
+  .tarjeta::before {
+    content: "";
+    position: absolute; inset: 0 0 auto 0; height: 5px;
+  }
+  .tarjeta.usd::before { background: linear-gradient(90deg, #0f9d58, #34d399); }
+  .tarjeta.eur::before { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+  .tarjeta.usd { background: linear-gradient(180deg, var(--verde-suave), transparent 55%), var(--tarjeta); }
+  .tarjeta.eur { background: linear-gradient(180deg, var(--azul-suave), transparent 55%), var(--tarjeta); }
+
+  .tarjeta-cab { display: flex; align-items: center; gap: 13px; }
+  .bandera {
+    display: grid; place-items: center;
+    width: 46px; height: 46px; border-radius: 14px;
+    font-weight: 800; font-size: 15px; letter-spacing: .02em;
+  }
+  .usd .bandera { background: var(--verde-suave); color: var(--verde); }
+  .eur .bandera { background: var(--azul-suave); color: var(--azul); }
+  .tarjeta h2 { margin: 0; font-size: 19px; }
+  .codigo { margin: 2px 0 0; font-size: 12px; font-weight: 600; letter-spacing: .06em; color: var(--texto-suave); text-transform: uppercase; }
+
+  .tasa {
+    display: flex; align-items: baseline; gap: 9px;
+    margin: 22px 0 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .tasa span { font-size: 15px; font-weight: 700; color: var(--texto-suave); }
+  .tasa strong {
+    font-size: clamp(34px, 8vw, 44px);
+    line-height: 1;
+    letter-spacing: -.03em;
+    font-weight: 800;
+  }
+  .usd .tasa strong { color: var(--verde); }
+  .eur .tasa strong { color: var(--azul); }
+  .exacto {
+    margin: 0;
+    font-size: 12px;
+    color: var(--texto-suave);
+    font-variant-numeric: tabular-nums;
+  }
+  .exacto span { font-weight: 600; color: var(--texto); }
+  .pie-tarjeta {
+    margin: 16px 0 0;
+    padding-top: 13px;
+    border-top: 1px dashed var(--borde);
+    font-size: 12px;
+    color: var(--texto-suave);
+  }
+
+  .detalles {
+    margin: 22px 0 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    padding: 18px 20px;
+  }
+  @media (max-width: 620px) { .detalles { grid-template-columns: 1fr; } }
+  .detalle dt {
+    margin: 0 0 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--texto-suave);
+  }
+  .detalle dd {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .detalle a { color: var(--azul); text-decoration: none; }
+  .detalle a:hover { text-decoration: underline; }
+
+  .nota {
+    margin: 18px 4px 0;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--texto-suave);
+  }
+</style>
+</head>
+<body>
+<main class="contenedor">
+  <header class="cabecera">
+    <p class="etiqueta">Banco Central de Venezuela</p>
+    <h1>Tasas oficiales</h1>
+    <p class="subtitulo">Valor del dólar y del euro en bolívares, según el cambio oficial publicado por el BCV.</p>
+    <div class="sellos">
+      <span class="sello">Fuente oficial bcv.org.ve</span>
+      {% if en_servidor and not error %}
+      <span class="sello" id="sello-auto">Se actualiza automáticamente cada 60 s</span>
+      {% elif not en_servidor %}
+      <span class="sello estatica">Vista estática · {{ actualizado_texto }}</span>
+      {% endif %}
+    </div>
+  </header>
+
+  {% if error %}
+  <div class="aviso error" role="alert">
+    No se pudo consultar el BCV en este momento. Intenta de nuevo en unos segundos.
+    <br /><small>{{ error }}</small>
+  </div>
+  {% endif %}
+
+  <div class="aviso advertencia{% if not stale %} oculto{% endif %}" id="aviso-stale" role="status">
+    El BCV no respondió a la última consulta: se muestra la última tasa guardada en el servidor.
+  </div>
+
+  <section class="tarjetas" aria-label="Tasas de cambio oficiales">
+    <article class="tarjeta usd">
+      <header class="tarjeta-cab">
+        <span class="bandera" aria-hidden="true">US$</span>
+        <div>
+          <h2>Dólar</h2>
+          <p class="codigo">USD · 1 dólar equivale a</p>
+        </div>
+      </header>
+      <p class="tasa"><span>Bs.</span> <strong id="usd">{{ usd_bs }}</strong></p>
+      <p class="exacto">Valor exacto BCV: <span id="usd-exacto">{{ usd_exacta }}</span></p>
+      <p class="pie-tarjeta">Tasa de referencia para operaciones en bolívares.</p>
+    </article>
+
+    <article class="tarjeta eur">
+      <header class="tarjeta-cab">
+        <span class="bandera" aria-hidden="true">€</span>
+        <div>
+          <h2>Euro</h2>
+          <p class="codigo">EUR · 1 euro equivale a</p>
+        </div>
+      </header>
+      <p class="tasa"><span>Bs.</span> <strong id="eur">{{ eur_bs }}</strong></p>
+      <p class="exacto">Valor exacto BCV: <span id="eur-exacto">{{ eur_exacta }}</span></p>
+      <p class="pie-tarjeta">Tasa de referencia para operaciones en bolívares.</p>
+    </article>
+  </section>
+
+  <dl class="detalles">
+    <div class="detalle">
+      <dt>Fecha valor</dt>
+      <dd id="fecha-valor">{{ fecha_valor_texto }}</dd>
+    </div>
+    <div class="detalle">
+      <dt>Última consulta</dt>
+      <dd id="actualizado">{{ actualizado_texto }}</dd>
+    </div>
+    <div class="detalle">
+      <dt>Fuente</dt>
+      <dd><a href="{{ fuente }}" target="_blank" rel="noopener">bcv.org.ve · cambio oficial</a></dd>
+    </div>
+  </dl>
+
+  <p class="nota">Datos extraídos de la página de cambio oficial del BCV con fines informativos.</p>
+</main>
+
+{% if en_servidor and not error %}
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+
+  function pintar(datos) {
+    if (!datos || !datos.ok) { return; }
+    $("usd").textContent = datos.usd_bs;
+    $("eur").textContent = datos.eur_bs;
+    $("usd-exacto").textContent = datos.usd_exacta;
+    $("eur-exacto").textContent = datos.eur_exacta;
+    $("fecha-valor").textContent = datos.fecha_valor_texto || datos.fecha_valor || "No disponible";
+    $("actualizado").textContent = datos.actualizado_texto || "";
+    var aviso = $("aviso-stale");
+    if (aviso) { aviso.classList.toggle("oculto", !(datos.cache && datos.cache.stale)); }
+    var sello = $("sello-auto");
+    if (sello) { sello.classList.remove("fallo"); }
+  }
+
+  async function actualizar() {
+    try {
+      var respuesta = await fetch("/api/tasas", {
+        cache: "no-store",
+        headers: { "Accept": "application/json" }
+      });
+      if (!respuesta.ok) { throw new Error("HTTP " + respuesta.status); }
+      pintar(await respuesta.json());
+    } catch (error) {
+      var sello = $("sello-auto");
+      if (sello) { sello.classList.add("fallo"); }
+    }
+  }
+
+  setInterval(actualizar, 60000);
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) { actualizar(); }
+  });
+})();
+</script>
+{% endif %}
+</body>
+</html>

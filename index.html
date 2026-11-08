@@ -84,6 +84,49 @@
             </div>
         </div>
 
+        <!-- Tasas Oficiales BCV -->
+        <section class="bg-white dark:bg-slate-800 rounded-3xl p-5 shadow-sm border border-slate-200/80 dark:border-slate-700 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="trending-up" class="w-5 h-5 text-brand-600 dark:text-brand-500"></i>
+                    <h2 class="font-semibold text-base">Tasas del BCV</h2>
+                </div>
+                <button type="button" id="btnRefreshRates" onclick="refreshRates()" title="Consultar las tasas del BCV" class="px-3 py-1.5 bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-500/20 text-xs font-semibold rounded-xl transition flex items-center space-x-1.5 active:scale-95">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                    <span id="refreshRatesLabel">Actualizar</span>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <!-- Dólar: se puede aplicar a la calculadora -->
+                <button type="button" onclick="useBcvRate('usd')" title="Usar la tasa del dólar en la calculadora" class="text-left p-4 rounded-2xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-900/20 hover:border-emerald-400 dark:hover:border-emerald-700 active:scale-[0.99] transition">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold tracking-wider text-emerald-700 dark:text-emerald-400">DÓLAR · USD</span>
+                        <i data-lucide="dollar-sign" class="w-3.5 h-3.5 text-emerald-500"></i>
+                    </div>
+                    <p class="mt-1 text-xl font-extrabold leading-tight text-emerald-700 dark:text-emerald-300 tabular-nums"><span id="rateUsd">—</span> <span class="text-xs font-semibold">Bs</span></p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">Exacta: <span id="rateUsdExacta" class="tabular-nums">—</span></p>
+                </button>
+
+                <!-- Euro: referencia -->
+                <div class="p-4 rounded-2xl border border-sky-200 dark:border-sky-900/60 bg-sky-50/70 dark:bg-sky-900/20">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold tracking-wider text-sky-700 dark:text-sky-400">EURO · EUR</span>
+                        <i data-lucide="euro" class="w-3.5 h-3.5 text-sky-500"></i>
+                    </div>
+                    <p class="mt-1 text-xl font-extrabold leading-tight text-sky-700 dark:text-sky-300 tabular-nums"><span id="rateEur">—</span> <span class="text-xs font-semibold">Bs</span></p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">Exacta: <span id="rateEurExacta" class="tabular-nums">—</span></p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+                <span>Fecha valor: <span id="rateFechaValor" class="font-semibold text-slate-700 dark:text-slate-300">—</span></span>
+                <span>Actualizado: <span id="rateActualizado" class="font-semibold text-slate-700 dark:text-slate-300">—</span></span>
+            </div>
+
+            <p id="rateStatus" role="status" aria-live="polite" class="text-[11px] leading-snug text-slate-500 dark:text-slate-400">Cargando tasas…</p>
+        </section>
+
         <!-- Formulario Nueva Venta / Calculadora -->
         <section class="bg-white dark:bg-slate-800 rounded-3xl p-5 shadow-sm border border-slate-200/80 dark:border-slate-700 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-3">
@@ -281,6 +324,7 @@
             loadTheme();
             loadCredits();
             calculateOutputs();
+            cargarTasasIniciales();
         };
 
         // --- MÓDULO MODO OSCURO ---
@@ -305,6 +349,219 @@
             const iconContainer = document.getElementById('themeIcon');
             iconContainer.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
             lucide.createIcons();
+        }
+
+        // --- MÓDULO TASAS BCV ---
+        const RATES_STORAGE_KEY = 'finanbcv_tasas';
+        let lastRates = null;
+        let lastAutoUsd = null;
+        let ratesRefreshing = false;
+
+        function numeroTasa(valor) {
+            const numero = typeof valor === 'number' ? valor : parseFloat(valor);
+            return Number.isFinite(numero) && numero > 0 ? numero : null;
+        }
+
+        function formatearTasaExacta(valor) {
+            return valor.toLocaleString('es-VE', {minimumFractionDigits: 8, maximumFractionDigits: 8});
+        }
+
+        function normalizarRates(datos) {
+            if (!datos || typeof datos !== 'object') return null;
+            const usd = numeroTasa(datos.usd);
+            const eur = numeroTasa(datos.eur);
+            if (usd === null || eur === null) return null;
+            return {
+                usd,
+                eur,
+                usd_bs: datos.usd_bs || usd.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2}),
+                eur_bs: datos.eur_bs || eur.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2}),
+                usd_exacta: datos.usd_exacta || formatearTasaExacta(usd),
+                eur_exacta: datos.eur_exacta || formatearTasaExacta(eur),
+                fecha_valor_texto: datos.fecha_valor_texto || datos.fecha_valor || '',
+                actualizado_texto: datos.actualizado_texto || '',
+                fuente: datos.fuente || ''
+            };
+        }
+
+        function setRateStatus(texto, tipo) {
+            const el = document.getElementById('rateStatus');
+            const colores = {
+                ok: 'text-emerald-600 dark:text-emerald-400',
+                warn: 'text-amber-600 dark:text-amber-400',
+                error: 'text-red-600 dark:text-red-400',
+                info: 'text-slate-500 dark:text-slate-400'
+            };
+            el.textContent = texto;
+            el.className = `text-[11px] leading-snug ${colores[tipo] || colores.info}`;
+        }
+
+        function setRatesButtonLoading(cargando) {
+            const boton = document.getElementById('btnRefreshRates');
+            const icono = boton.querySelector('svg');
+            const etiqueta = document.getElementById('refreshRatesLabel');
+            boton.disabled = cargando;
+            boton.classList.toggle('opacity-60', cargando);
+            boton.classList.toggle('pointer-events-none', cargando);
+            if (icono) icono.classList.toggle('animate-spin', cargando);
+            etiqueta.textContent = cargando ? 'Actualizando…' : 'Actualizar';
+        }
+
+        function pintarRates(datos, origen) {
+            lastRates = datos;
+
+            document.getElementById('rateUsd').textContent = datos.usd_bs;
+            document.getElementById('rateEur').textContent = datos.eur_bs;
+            document.getElementById('rateUsdExacta').textContent = datos.usd_exacta;
+            document.getElementById('rateEurExacta').textContent = datos.eur_exacta;
+            document.getElementById('rateFechaValor').textContent = datos.fecha_valor_texto || 'No disponible';
+            document.getElementById('rateActualizado').textContent = datos.actualizado_texto || '—';
+
+            try {
+                localStorage.setItem(RATES_STORAGE_KEY, JSON.stringify(datos));
+            } catch (error) {
+                // Sin espacio o almacenamiento bloqueado: las tasas igual se muestran.
+            }
+
+            // Rellena la tasa de la calculadora solo si está vacía o si aún
+            // conserva el valor que colocamos automáticamente (no pisa una
+            // tasa personalizada escrita por el usuario).
+            const input = document.getElementById('bcvRate');
+            if (input && (!input.value || parseFloat(input.value) === lastAutoUsd)) {
+                input.value = String(datos.usd);
+                lastAutoUsd = datos.usd;
+                calculateOutputs();
+            }
+
+            const mensajes = {
+                servidor: ['Tasas actualizadas desde el BCV.', 'ok'],
+                archivo: ['Tasas cargadas desde tasas.json. Toca el dólar para usarlo en la calculadora.', 'ok'],
+                guardadas: ['Sin conexión: se muestran las últimas tasas guardadas.', 'warn']
+            };
+            const [texto, tipo] = mensajes[origen] || mensajes.archivo;
+            setRateStatus(texto, tipo);
+        }
+
+        async function leerTasasJson() {
+            const respuesta = await fetch(`tasas.json?t=${Date.now()}`, {
+                cache: 'no-store',
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
+            return normalizarRates(await respuesta.json());
+        }
+
+        async function actualizarEnServidor() {
+            // Solo tiene sentido con un servidor que exponga /api/actualizar
+            // (bcv_server.py). En un servidor estático o en file:// se ignora.
+            if (!/^https?:$/.test(window.location.protocol)) return null;
+            const control = new AbortController();
+            const temporizador = setTimeout(() => control.abort(), 60000);
+            try {
+                const respuesta = await fetch('/api/actualizar', {
+                    method: 'POST',
+                    cache: 'no-store',
+                    headers: { 'Accept': 'application/json' },
+                    signal: control.signal
+                });
+                if (!respuesta.ok) return null;
+                const datos = await respuesta.json();
+                return datos && datos.ok ? normalizarRates(datos) : null;
+            } catch (error) {
+                return null;
+            } finally {
+                clearTimeout(temporizador);
+            }
+        }
+
+        function cargarTasasGuardadas() {
+            try {
+                const guardado = localStorage.getItem(RATES_STORAGE_KEY);
+                return guardado ? normalizarRates(JSON.parse(guardado)) : null;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function mensajeSinTasas() {
+            if (window.location.protocol === 'file:') {
+                return 'Para leer tasas.json abre la app con python3 bcv_server.py (o un servidor local). También puedes escribir la tasa a mano.';
+            }
+            return 'No se pudo leer tasas.json. Genera el archivo con: python3 bcv_scraper.py > tasas.json 2>/dev/null';
+        }
+
+        async function cargarTasasIniciales() {
+            setRateStatus('Cargando tasas del BCV…', 'info');
+            try {
+                const delArchivo = await leerTasasJson();
+                if (delArchivo) {
+                    pintarRates(delArchivo, 'archivo');
+                    return;
+                }
+                throw new Error('tasas.json sin datos válidos');
+            } catch (error) {
+                const guardadas = cargarTasasGuardadas();
+                if (guardadas) {
+                    pintarRates(guardadas, 'guardadas');
+                    return;
+                }
+                setRateStatus(mensajeSinTasas(), 'error');
+            }
+        }
+
+        async function refreshRates() {
+            if (ratesRefreshing) return;
+            ratesRefreshing = true;
+            setRatesButtonLoading(true);
+            setRateStatus('Consultando las tasas del BCV…', 'info');
+
+            try {
+                // 1) Si la app se sirve con bcv_server.py, el botón ejecuta el
+                //    scraper en el servidor y deja tasas.json al día.
+                const delServidor = await actualizarEnServidor();
+                if (delServidor) {
+                    pintarRates(delServidor, 'servidor');
+                    showToast('Tasas actualizadas desde el BCV');
+                    return;
+                }
+
+                // 2) Sin endpoint (servidor estático): relee tasas.json.
+                const delArchivo = await leerTasasJson();
+                if (delArchivo) {
+                    pintarRates(delArchivo, 'archivo');
+                    showToast('Tasas recargadas desde tasas.json');
+                    return;
+                }
+
+                // 3) Último recurso: tasas guardadas en el dispositivo.
+                const guardadas = cargarTasasGuardadas();
+                if (guardadas) {
+                    pintarRates(guardadas, 'guardadas');
+                    showToast('Sin conexión: mostrando las últimas tasas guardadas');
+                    return;
+                }
+
+                throw new Error('tasas no disponibles');
+            } catch (error) {
+                setRateStatus(mensajeSinTasas(), 'error');
+                showToast('No se pudieron cargar las tasas');
+            } finally {
+                ratesRefreshing = false;
+                setRatesButtonLoading(false);
+            }
+        }
+
+        function useBcvRate(moneda) {
+            if (!lastRates) {
+                showToast('Primero actualiza las tasas');
+                return;
+            }
+            const valor = moneda === 'eur' ? lastRates.eur : lastRates.usd;
+            const input = document.getElementById('bcvRate');
+            input.value = String(valor);
+            lastAutoUsd = moneda === 'usd' ? valor : null;
+            calculateOutputs();
+            showToast(`Tasa ${moneda.toUpperCase()} aplicada: Bs ${moneda === 'eur' ? lastRates.eur_bs : lastRates.usd_bs}`);
         }
 
         // --- MÓDULO AJUSTES / PAGO MÓVIL ---

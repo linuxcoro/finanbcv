@@ -189,6 +189,7 @@ Se considera terminado cuando:
 | 2026-11-08 | Post-plan | **Historial de pagos por crédito:** campo aditivo `payments` en `finanbcv_credits`, botón "Historial de pagos (N)" en cada tarjeta y modal con la inicial + abonos (fecha, parte, $ y Bs), compatible con créditos heredados (resumen "pagos anteriores sin detalle"). Documentación actualizada. Commit `feat: mostrar historial de pagos por crédito`. |
 | 2026-11-08 | Post-plan | Se quitó la inicial del historial de pagos: ahora solo lista abonos de cuota y el total mostrado es el de cuotas. En ese momento la tarjeta aún mostraba la inicial. Documentación actualizada. Commit `fix: excluir la inicial del historial de pagos`. |
 | 2026-11-08 | Post-plan | Se eliminó el **% de pago inicial**: sin campo en el formulario, sin "Monto Inicial" en el resumen y sin celda "Inicial (X%)" en la tarjeta; el cálculo ahora financia el monto total (`cuota = totalUsd / partes`) y los créditos nuevos no guardan `initialPercent` (los antiguos se leen igual). Documentación actualizada. Commit `refactor: eliminar el % de pago inicial`. |
+| 2026-11-08 | Post-plan | **Tasas USD/EUR en la app:** `index.html` lee `tasas.json` y muestra tarjetas del dólar y del euro con botón **Actualizar** (usa `POST /api/actualizar` de `bcv_server.py` si está disponible; si no, relee el archivo; fallback a `localStorage`). La tasa del dólar se aplica a la calculadora sin pisar tasas personalizadas. `bcv_server.py` gana `/app`, `/tasas.json` y `POST /api/actualizar`; el workflow del APK copia `tasas.json` si existe. Documentación y `README_tasas.md` actualizados. |
 
 ## 7. Mejora posterior — Historial de pagos por crédito
 
@@ -210,3 +211,14 @@ Se considera terminado cuando:
 - El historial de pagos (solo abonos de cuota) no cambia.
 - Documentación actualizada en `documentaci_n_de_la_aplicaci_n.md`.
 - Commit: `refactor: eliminar el % de pago inicial`.
+
+## 9. Mejora posterior — Tasas USD/EUR en la app con botón Actualizar
+
+**Estado:** ✅ hecho (mejora posterior a los pasos 1–5).
+
+- `index.html` muestra las tasas oficiales **USD** y **EUR** del BCV con fecha valor y hora de actualización, y un botón **Actualizar**.
+- Al cargar y al pulsar el botón lee `tasas.json` (con caché evitada); si la app se sirve con `bcv_server.py`, el botón hace `POST /api/actualizar`: el servidor ejecuta `bcv_scraper.py`, regenera `tasas.json` de forma atómica y devuelve el JSON. Sin endpoint (servidor estático) el botón relee el archivo; como último recurso usa las tasas guardadas en `localStorage.finanbcv_tasas`.
+- La tasa del dólar se rellena automáticamente en el campo **Tasa BCV (Bs/$)** sin pisar una tasa personalizada; la tarjeta USD permite reaplicarla y la del euro se muestra como referencia.
+- `bcv_server.py` incorpora las rutas `GET /app`, `GET /tasas.json` y `POST /api/actualizar` (además de las existentes).
+- El workflow del APK copia `tasas.json` a `www/` si existe, para que el APK muestre la última foto de las tasas.
+- Documentación actualizada en `README_tasas.md` y `documentaci_n_de_la_aplicaci_n.md`.

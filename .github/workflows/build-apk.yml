@@ -39,6 +39,7 @@ jobs:
         run: |
           mkdir -p www
           cp index.html www/index.html
+          if [ -f tasas.json ]; then cp tasas.json www/tasas.json; fi
 
       - name: Add Android platform
         run: |
