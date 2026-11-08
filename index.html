@@ -414,6 +414,9 @@
                 const paidInstallments = credit.totalInstallments - credit.remainingInstallments;
                 const progressPercent = Math.round((paidInstallments / credit.totalInstallments) * 100);
                 const currentBsRate = credit.installmentUsd * credit.bcvRate;
+                const initialPercent = credit.initialPercent ?? 0;   // compatibilidad con créditos antiguos
+                const initialUsd = credit.totalUsd * (initialPercent / 100);
+                const initialBs = initialUsd * credit.bcvRate;
 
                 return `
                     <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 shadow-sm border border-slate-200/80 dark:border-slate-700 space-y-3">
@@ -445,6 +448,10 @@
                                 <span class="font-semibold text-slate-700 dark:text-slate-300">$${credit.totalUsd.toFixed(2)}</span>
                             </div>
                             <div>
+                                <span class="text-slate-400 block">Inicial (${initialPercent}%):</span>
+                                <span class="font-semibold text-slate-700 dark:text-slate-300">$${initialUsd.toFixed(2)} <span class="font-normal text-slate-500">(Bs ${initialBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})})</span></span>
+                            </div>
+                            <div class="col-span-2">
                                 <span class="text-slate-400 block">Monto por Cuota:</span>
                                 <span class="font-bold text-brand-600 dark:text-brand-400">$${credit.installmentUsd.toFixed(2)} (Bs ${currentBsRate.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})})</span>
                             </div>

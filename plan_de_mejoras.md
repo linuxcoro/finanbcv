@@ -33,7 +33,7 @@ Se considera terminado cuando:
 | # | Paso | Estado |
 |---|------|--------|
 | 1 | Repositorio git y renombrar a `index.html` | ✅ hecho |
-| 2 | Mostrar la inicial pagada en la tarjeta del crédito | ⬜ pendiente |
+| 2 | Mostrar la inicial pagada en la tarjeta del crédito | ✅ hecho |
 | 3 | Número de parte correcto en el mensaje de Pago Móvil | ⬜ pendiente |
 | 4 | Actualizar `documentaci_n_de_la_aplicaci_n.md` | ⬜ pendiente |
 | 5 | **Último:** workflow de GitHub Actions para el APK | ⬜ pendiente |
@@ -179,4 +179,5 @@ Se considera terminado cuando:
 | Fecha | Paso | Resultado |
 |-------|------|-----------|
 | 2026-11-08 | — | Plan creado. Ningún paso ejecutado todavía; el repositorio sigue con `gestor_de_ventas_financiadas_bcv.html` y `documentaci_n_de_la_aplicaci_n.md`. |
-| 2026-11-08 | 1 | Repositorio git creado en rama `main` con commit inicial de los 3 archivos; rename con `git mv` de `gestor_de_ventas_financiadas_bcv.html` a `index.html` (commit `f1fb567`). Único HTML de la raíz y app sin rutas relativas. |
+| 2026-11-08 | 1 | Repositorio git creado en rama `main` con commit inicial de los 3 archivos; rename con `git mv` de `gestor_de_ventas_financiadas_bcv.html` a `index.html`. Único HTML de la raíz y app sin rutas relativas. |
+| 2026-11-08 | 2 | `renderCredits()` muestra la celda "Inicial (X%)" con `$X (Bs Y)` junto a "Total Venta" (fallback 0 % para créditos heredados) y "Monto por Cuota" pasa a fila `col-span-2`. Verificado con arnés Node sobre el JS inline: $100 al 30 % → `$30.00 (Bs 1.095,00)`; sin `initialPercent` → `$0.00 (Bs 0,00)`. |
