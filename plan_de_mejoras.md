@@ -309,3 +309,14 @@ Prerrequisitos: cuenta de GitHub y autenticación. No hay `gh` instalado; la rut
 - El workflow **Build APK** sube a Capacitor 8 (Node 22, Java 21, `android-36`/`build-tools 36.0.0`, `targetSdk 36`) e instala `@capacitor-community/admob@8.3.0`; verifica el meta-data de AdMob, el plugin y `ads-config.js` dentro del APK antes de subir el artifact.
 - El banner se oculta con los modales abiertos, reserva su alto con la variable CSS `--admob-banner-h` y no se muestra si no hay consentimiento, internet o Google Play Services.
 - AdMob **no paga** por un APK instalado a mano: queda documentado el checklist de publicación (Play, `app-ads.txt`, verificación de AdMob, firma release y datos de cobro) en `documentaci_n_de_la_aplicaci_n.md`.
+
+## 12. Mejora posterior — Respaldo de datos y firma release para Play
+
+**Estado:** 🚧 implementado; pendiente configurar los 4 secrets de firma y subir el AAB a Play (prueba interna).
+
+- **Respaldo y restauración:** en **Ajustes → Respaldo y restauración** se genera un JSON con créditos, ajustes y tema; se puede copiar, compartir por el selector nativo (WhatsApp, Telegram, correo…) y restaurar con confirmación. Validado en Chrome headless: exportar → borrar → restaurar recupera créditos, ajustes y tema; un texto inválido no modifica los datos.
+- **Firma release estable:** nuevo workflow manual `.github/workflows/build-release.yml` (Node 22, Java 21, SDK 36) que compila `bundleRelease` + `assembleRelease`, firma el AAB con `jarsigner` y el APK con `zipalign` + `apksigner` usando la clave de carga de los secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` y `ANDROID_KEY_PASSWORD`.
+- **versionCode/versionName automáticos:** `scripts/patch-android-version.mjs` los calcula como `run_number * 100 + run_attempt` para que Play acepte cada subida.
+- `.gitignore` excluye `.release/`, `*.jks`, `*.keystore` y `key.properties`; el keystore se entrega aparte y nunca se versiona.
+- El APK release se firma con la misma clave en cada build, así que instalar/actualizar deja de fallar por firmas distintas.
+- Documentación actualizada con el paso a paso de secrets, AAB y prueba interna de Play.

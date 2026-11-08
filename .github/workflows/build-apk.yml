@@ -48,6 +48,11 @@ jobs:
           npm install @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/share@8 @capacitor-community/admob@8.3.0
 
       - name: Prepare web assets
+        env:
+          ADMOB_APP_ID: ${{ vars.ADMOB_APP_ID }}
+          ADMOB_BANNER_ID: ${{ vars.ADMOB_BANNER_ID }}
+          ADMOB_INTERSTITIAL_ID: ${{ vars.ADMOB_INTERSTITIAL_ID }}
+          ADMOB_TEST_MODE: ${{ vars.ADMOB_TEST_MODE }}
         run: |
           mkdir -p www
           cp index.html www/index.html
@@ -59,6 +64,11 @@ jobs:
         run: npx cap add android
 
       - name: Configurar AdMob en el proyecto Android
+        env:
+          ADMOB_APP_ID: ${{ vars.ADMOB_APP_ID }}
+          ADMOB_BANNER_ID: ${{ vars.ADMOB_BANNER_ID }}
+          ADMOB_INTERSTITIAL_ID: ${{ vars.ADMOB_INTERSTITIAL_ID }}
+          ADMOB_TEST_MODE: ${{ vars.ADMOB_TEST_MODE }}
         run: |
           # Parchea AndroidManifest.xml y strings.xml con el App ID de AdMob.
           node scripts/admob-build-config.mjs

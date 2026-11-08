@@ -7,3 +7,9 @@ www/
 android/
 node_modules/
 .DS_Store
+
+# Firma release: el keystore y sus contraseñas NUNCA se versionan.
+.release/
+*.jks
+*.keystore
+key.properties

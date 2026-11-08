@@ -17,6 +17,7 @@ La aplicación permite llevar el control de abonos de clientes, calcular el mont
 * **Anuncios AdMob (solo en el APK):** banner adaptativo en la parte inferior y anuncios interstitial en cortes naturales (al registrar un crédito o al cerrar el comprobante de abono), con consentimiento UMP y anuncios de prueba por defecto. En el navegador la monetización queda desactivada.
 * **Modo Oscuro / Claro:** Alternador de interfaz de usuario con almacenamiento persistente en el navegador para ahorrar batería en pantallas OLED.
 * **Persistencia Local (`localStorage`):** Guarda la lista de clientes, abonos y configuraciones directamente en el almacenamiento del dispositivo, sin requerir internet ni bases de datos externas.
+* **Respaldo y restauración:** desde **Ajustes → Respaldo y restauración** se genera un texto JSON con los créditos, los datos de Pago Móvil y el tema; se puede copiar, compartir por WhatsApp/correo y restaurar en el mismo u otro teléfono (útil antes de cambiar de versión o de dispositivo).
 * **Diseño Responsive / Mobile-First:** Interfaz moderna adaptada para teléfonos celulares y computadoras con Tailwind CSS.
 
 ---
@@ -43,8 +44,7 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 | Archivo | Descripción |
 |---------|-------------|
 | `index.html` | Aplicación completa (SPA de un solo archivo). |
-| `tasas.json` | Tasas oficiales USD/EUR generadas por `bcv_scraper.py`; la app las descarga desde GitHub. |
-| `bcv_scraper.py` | Scraper de las tasas del BCV; escribe `tasas.json`. |
+| `tasas.json` | Ya no se versiona en este repositorio: la app descarga las tasas de [`linuxcoro/bcv_scraper`](https://github.com/linuxcoro/bcv_scraper). |
 | `bcv_server.py` | Servidor local opcional: sirve la app y actualiza las tasas con `POST /api/actualizar`. |
 | `templates/tasas.html` | Página de tasas del servidor (modo servidor y estático). |
 | `README_tasas.md` | Guía del scraper, del servidor y de la integración con la app. |
@@ -52,8 +52,9 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 | `plan_de_mejoras.md` | Roadmap y bitácora de mejoras del proyecto. |
 | `capacitor.config.json` | Configuración e identidad de la app para Capacitor. |
 | `scripts/admob-build-config.mjs` | Script del CI: genera `www/ads-config.js` y parchea el proyecto Android generado (`AndroidManifest.xml` y `strings.xml`) con el App ID de AdMob. |
-| `.github/workflows/build-apk.yml` | Workflow de GitHub Actions que compila el APK debug. |
-| `.github/workflows/actualizar-tasas.yml` | Workflow de GitHub Actions que regenera `tasas.json` cada hora y lo commitea. |
+| `scripts/patch-android-version.mjs` | Script del CI: ajusta `versionCode` y `versionName` del proyecto Android generado (obligatorio para subir AAB a Play). |
+| `.github/workflows/build-apk.yml` | Workflow de GitHub Actions que compila el **APK debug** con anuncios de prueba. |
+| `.github/workflows/build-release.yml` | Workflow manual que compila el **AAB firmado** para Google Play y un **APK release** firmado con la clave de carga. |
 
 ---
 
@@ -147,7 +148,9 @@ El repositorio ya incluye el workflow de **GitHub Actions** y la configuración 
   * `index.html` (la aplicación).
   * `capacitor.config.json` (identidad de la app).
   * `scripts/admob-build-config.mjs` (configuración de AdMob para el APK).
-  * `.github/workflows/build-apk.yml` (workflow de compilación).
+  * `scripts/patch-android-version.mjs` (versionCode/versionName del AAB).
+  * `.github/workflows/build-apk.yml` (workflow del APK debug).
+  * `.github/workflows/build-release.yml` (workflow del AAB/APK release firmado).
 
 ### Subir el proyecto a GitHub
 
@@ -159,7 +162,7 @@ git push -u origin main
 ### Generar el APK
 
 1. El workflow **Build APK** se dispara automáticamente con cada *push* a la rama `main` (también se puede lanzar manualmente desde **Actions → Build APK → Run workflow**).
-2. El workflow configura Node 22, Java 21 (Temurin) y Capacitor 8 con los plugins `@capacitor/share` y `@capacitor-community/admob`, verifica el SDK de Android 36 (`android-36` y `build-tools/36.0.0`) preinstalado en el runner, copia `index.html` y `tasas.json` a `www/`, genera `www/ads-config.js`, añade la plataforma Android, configura AdMob en el manifest y ejecuta `./gradlew assembleDebug`.
+2. El workflow configura Node 22, Java 21 (Temurin) y Capacitor 8 con los plugins `@capacitor/share` y `@capacitor-community/admob`, verifica el SDK de Android 36 (`android-36` y `build-tools/36.0.0`) preinstalado en el runner, copia `index.html` a `www/`, genera `www/ads-config.js`, añade la plataforma Android, configura AdMob en el manifest y ejecuta `./gradlew assembleDebug`.
 3. Antes de subir el artifact, el workflow verifica dentro del APK que existan el meta-data de AdMob, el plugin en `capacitor.plugins.json` y `ads-config.js`.
 4. Al terminar, abre la ejecución del workflow en la pestaña **Actions** y descarga el *artifact* **`FinanBCV-apk`**, que contiene `app-debug.apk`.
 
@@ -170,7 +173,7 @@ git push -u origin main
 3. Toca `app-debug.apk` y confirma la instalación.
    * Alternativa por cable USB con [Android Debug Bridge](https://developer.android.com/tools/adb): `adb install -r app-debug.apk`.
 
-> ⚠️ Es un APK **debug**: sirve para probar la aplicación, no está firmado para producción ni publicado en Play Store. Para distribuirlo formalmente hay que firmarlo con un *keystore* propio.
+> ⚠️ Es un APK **debug**: sirve para probar la aplicación, no está firmado para producción ni publicado en Play Store. Además, **Google Play Protect puede bloquearlo** por venir de fuera de Play (no es un fallo de la app): desactiva temporalmente *Play Store → perfil → Play Protect → ⚙️ → Analizar apps con Play Protect*, instala y vuelve a activarlo; o instálalo por `adb install -r app-debug.apk`. Para una distribución estable usa el APK/AAB firmado con la clave de carga (ver **Firma release, AAB y prueba interna en Play**).
 
 ### Limitaciones
 
@@ -180,11 +183,65 @@ git push -u origin main
 * Los datos (`finanbcv_credits`, `finanbcv_settings`, `finanbcv_theme`) se guardan en el `localStorage` del WebView del teléfono; no hay sincronización entre dispositivos.
 * El historial de pagos se guarda dentro de `finanbcv_credits` (campo `payments`). Los créditos creados antes de esta versión no tienen detalle de pagos: su historial muestra un resumen "pagos anteriores sin detalle".
 * **Anuncios:** el banner y los interstitial necesitan internet y Google Play Services; si faltan, la app funciona igual, sin anuncios. Un APK instalado a mano **no genera ingresos**: AdMob solo sirve anuncios reales cuando la app está publicada en Google Play y verificada (ver la sección de monetización).
-* El workflow copia `index.html` y `tasas.json` a `www/` y genera `www/ads-config.js`; la carpeta generada no se versiona ni se edita a mano.
+* El workflow copia `index.html` a `www/` y genera `www/ads-config.js`; la carpeta generada no se versiona ni se edita a mano.
 
 ### Plan B si falla el build de Capacitor
 
 Si el build de Android fallara en CI, el workflow puede sustituirse por uno que publique como *artifact* un `.zip` con `index.html`; la app sigue funcionando como web (o se puede empaquetar manualmente con Capacitor).
+
+---
+
+## 🔐 Firma release, AAB y prueba interna en Play
+
+El workflow manual **Build release (AAB + APK firmado)** compila con una clave de carga propia: así las actualizaciones del APK ya no fallan por firmas distintas (cada build debug usa una clave nueva) y el AAB se puede subir a Google Play.
+
+### 1. Configurar los secrets de firma
+
+Genera una clave de carga (una sola vez) y guárdala fuera del repositorio:
+
+```bash
+keytool -genkeypair -v -keystore finanbcv-upload.jks -alias finanbcv \
+  -keyalg RSA -keysize 2048 -validity 10000 \
+  -dname "CN=FinanBCV, O=FinanBCV, C=VE"
+base64 -w0 finanbcv-upload.jks > finanbcv-upload.jks.b64
+```
+
+En **GitHub → Settings → Secrets and variables → Actions → New repository secret** crea:
+
+| Secret | Valor |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | Contenido de `finanbcv-upload.jks.b64` (una sola línea) |
+| `ANDROID_KEYSTORE_PASSWORD` | Contraseña del keystore |
+| `ANDROID_KEY_ALIAS` | `finanbcv` |
+| `ANDROID_KEY_PASSWORD` | Contraseña de la clave (puede ser la misma) |
+
+> ⚠️ El `.jks` y sus contraseñas **nunca** se suben al repositorio (`.gitignore` excluye `.release/`, `*.jks` y `key.properties`). Guarda una copia de seguridad: si pierdes la clave de carga, hay que pedir su restablecimiento en Play Console.
+
+### 2. Generar el AAB y el APK release
+
+1. **Actions → Build release (AAB + APK firmado) → Run workflow**.
+2. El workflow calcula el **versionCode** solo (`run_number * 100 + intento`, siempre creciente), compila `bundleRelease` y `assembleRelease`, firma el AAB con `jarsigner` (clave de carga) y el APK con `zipalign` + `apksigner` usando la misma clave.
+3. Descarga el artifact **`FinanBCV-release`**:
+   * `app-release.aab` → para subir a Google Play.
+   * `app-release.apk` → para instalar/actualizar directamente en el teléfono (misma firma en cada build).
+
+### 3. Publicar en prueba interna de Play
+
+1. En [Play Console](https://play.google.com/console), crea la app (`com.finanbcv.app`) y completa *App content*: política de privacidad, **Data safety**, declaración de anuncios, clasificación de contenido y público objetivo.
+2. Ve a **Prueba → Prueba interna → Crear nueva versión** y sube `app-release.aab` (Play App Signing se activa en la primera subida).
+3. Añade tu cuenta de Google como tester, publica la versión y abre el enlace de prueba: la app se instala **desde Play Store**, sin el bloqueo de Play Protect.
+4. Cuando quieras monetizar de verdad, sube las mismas versiones a Producción (la cuenta personal exige antes 12 testers durante 14 días) y verifica la app en AdMob.
+
+## 💾 Respaldo y restauración de datos
+
+Los créditos viven en el `localStorage` del WebView, así que **se pierden al desinstalar o cambiar de teléfono**. Para evitarlo:
+
+1. **Ajustes → Respaldo y restauración**.
+2. **Generar y copiar**: crea un texto JSON con todos los créditos, los datos de Pago Móvil y el tema, y lo copia al portapapeles.
+3. **Compartir**: abre el selector nativo (WhatsApp, Telegram, correo, Notas…) para guardar el respaldo fuera del teléfono.
+4. **Restaurar desde el texto**: pega un respaldo, confirma y la app reemplaza los datos actuales (créditos, ajustes y tema) y refresca la interfaz.
+
+> Consejo: genera un respaldo antes de cada cambio de versión o de teléfono. El respaldo no incluye las tasas del BCV (se descargan de nuevo).
 
 ---
 

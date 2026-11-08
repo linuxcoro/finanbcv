@@ -261,6 +261,51 @@
             <button type="button" id="btnPrivacyOptions" onclick="window.Ads && window.Ads.showPrivacyOptions()" class="hidden w-full py-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-semibold text-xs rounded-xl transition">
                 Privacidad y anuncios
             </button>
+
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
+                <button type="button" onclick="openBackupModal()" class="w-full py-2.5 bg-slate-100 dark:bg-slate-700/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl transition flex items-center justify-center space-x-1.5">
+                    <i data-lucide="hard-drive" class="w-4 h-4"></i>
+                    <span>Respaldo y restauración</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Respaldo y restauración de datos -->
+    <div id="modalBackup" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
+                <h3 class="font-bold text-base flex items-center space-x-2">
+                    <i data-lucide="database" class="w-5 h-5 text-brand-600"></i>
+                    <span>Respaldo de datos</span>
+                </h3>
+                <button onclick="toggleModal('modalBackup')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-500 dark:text-slate-400 leading-snug">
+                Genera un texto con todos tus créditos, ajustes y tema. Guárdalo en WhatsApp, Notas o tu correo.
+                Para restaurar en otro teléfono, pega el respaldo y pulsa <b>Restaurar</b>.
+            </p>
+
+            <textarea id="backupText" rows="7" placeholder="Aquí aparecerá el respaldo. También puedes pegar uno para restaurar." class="w-full p-3 bg-slate-100 dark:bg-slate-900 rounded-2xl text-[11px] font-mono border border-slate-200 dark:border-slate-700 outline-none resize-none"></textarea>
+
+            <div class="grid grid-cols-2 gap-3">
+                <button type="button" onclick="exportBackup()" class="py-2.5 px-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs rounded-xl shadow-md transition flex items-center justify-center space-x-1.5">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    <span>Generar y copiar</span>
+                </button>
+                <button type="button" onclick="shareBackup()" class="py-2.5 px-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-semibold text-xs rounded-xl transition flex items-center justify-center space-x-1.5">
+                    <i data-lucide="share-2" class="w-4 h-4"></i>
+                    <span>Compartir</span>
+                </button>
+            </div>
+
+            <button type="button" onclick="importBackup()" class="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md transition flex items-center justify-center space-x-1.5">
+                <i data-lucide="upload" class="w-4 h-4"></i>
+                <span>Restaurar desde el texto</span>
+            </button>
         </div>
     </div>
 
@@ -943,6 +988,107 @@
                 copyToClipboard();
                 showToast('Compartir no disponible. Texto copiado.');
             }
+        }
+
+        // --- RESPALDO Y RESTAURACIÓN ---
+        function openBackupModal() {
+            document.getElementById('backupText').value = '';
+            toggleModal('modalBackup');
+        }
+
+        function parseLocalJson(key, fallback) {
+            try {
+                const raw = localStorage.getItem(key);
+                return raw ? JSON.parse(raw) : fallback;
+            } catch (error) {
+                return fallback;
+            }
+        }
+
+        function buildBackupData() {
+            return {
+                app: 'FinanBCV',
+                backupVersion: 1,
+                exportedAt: new Date().toISOString(),
+                credits: parseLocalJson('finanbcv_credits', []),
+                settings: parseLocalJson('finanbcv_settings', null),
+                theme: localStorage.getItem('finanbcv_theme') || null
+            };
+        }
+
+        function copyBackupText(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.setAttribute('readonly', '');
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.select();
+            let copiado = false;
+            try {
+                copiado = document.execCommand('copy');
+            } catch (error) {
+                copiado = false;
+            }
+            document.body.removeChild(textArea);
+            return copiado;
+        }
+
+        function exportBackup() {
+            const text = JSON.stringify(buildBackupData(), null, 2);
+            document.getElementById('backupText').value = text;
+            const copiado = copyBackupText(text);
+            showToast(copiado ? 'Respaldo generado y copiado al portapapeles' : 'Respaldo generado; cópialo manualmente');
+        }
+
+        async function shareBackup() {
+            const textarea = document.getElementById('backupText');
+            if (!textarea.value.trim()) {
+                textarea.value = JSON.stringify(buildBackupData(), null, 2);
+            }
+            const compartido = await compartirTexto(textarea.value);
+            if (!compartido && copyBackupText(textarea.value)) {
+                showToast('Compartir no disponible. Respaldo copiado.');
+            }
+        }
+
+        function importBackup() {
+            const textarea = document.getElementById('backupText');
+            const texto = textarea.value.trim();
+            if (!texto) {
+                showToast('Pega primero el texto del respaldo');
+                return;
+            }
+
+            let data;
+            try {
+                data = JSON.parse(texto);
+            } catch (error) {
+                showToast('El texto no es un respaldo válido');
+                return;
+            }
+            if (!data || !Array.isArray(data.credits) || !data.credits.every(c => c && typeof c === 'object' && 'id' in c)) {
+                showToast('El respaldo no contiene créditos válidos');
+                return;
+            }
+
+            const total = data.credits.length;
+            if (!confirm(`¿Restaurar ${total} crédito(s)? Se reemplazarán los datos actuales del teléfono.`)) return;
+
+            localStorage.setItem('finanbcv_credits', JSON.stringify(data.credits));
+            if (data.settings && typeof data.settings === 'object') {
+                localStorage.setItem('finanbcv_settings', JSON.stringify(data.settings));
+            }
+            if (data.theme === 'dark' || data.theme === 'light') {
+                localStorage.setItem('finanbcv_theme', data.theme);
+            }
+
+            loadSettings();
+            loadTheme();
+            loadCredits();
+            calculateOutputs();
+            toggleModal('modalBackup');
+            showToast(`Datos restaurados: ${total} crédito(s)`);
         }
 
         // --- UTILIDADES ---

@@ -1,0 +1,171 @@
+name: Build release (AAB + APK firmado)
+
+# Se ejecuta a mano: Actions → Build release (AAB + APK firmado) → Run workflow.
+# Requiere 4 secrets de firma (ver documentaci_n_de_la_aplicaci_n.md).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compilar AAB y APK release firmados
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Verificar secretos de firma
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          faltan=0
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Falta el secret $name"
+              faltan=1
+            fi
+          done
+          if [ "$faltan" -ne 0 ]; then
+            echo "Agrega los 4 secrets en Settings → Secrets and variables → Actions (ver documentaci_n_de_la_aplicaci_n.md)."
+            exit 1
+          fi
+
+      - name: Verificar Android SDK
+        run: |
+          set -euo pipefail
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          test -n "${ANDROID_HOME:-}"
+          test -d "$ANDROID_HOME/platforms/android-36"
+          test -d "$ANDROID_HOME/build-tools/36.0.0"
+
+      - name: Install Capacitor 8 + plugins
+        run: |
+          npm init -y
+          npm install @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/share@8 @capacitor-community/admob@8.3.0
+
+      - name: Prepare web assets
+        env:
+          ADMOB_APP_ID: ${{ vars.ADMOB_APP_ID }}
+          ADMOB_BANNER_ID: ${{ vars.ADMOB_BANNER_ID }}
+          ADMOB_INTERSTITIAL_ID: ${{ vars.ADMOB_INTERSTITIAL_ID }}
+          ADMOB_TEST_MODE: ${{ vars.ADMOB_TEST_MODE }}
+        run: |
+          mkdir -p www
+          cp index.html www/index.html
+          if [ -f tasas.json ]; then cp tasas.json www/tasas.json; fi
+          node scripts/admob-build-config.mjs
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Configurar AdMob en el proyecto Android
+        env:
+          ADMOB_APP_ID: ${{ vars.ADMOB_APP_ID }}
+          ADMOB_BANNER_ID: ${{ vars.ADMOB_BANNER_ID }}
+          ADMOB_INTERSTITIAL_ID: ${{ vars.ADMOB_INTERSTITIAL_ID }}
+          ADMOB_TEST_MODE: ${{ vars.ADMOB_TEST_MODE }}
+        run: |
+          node scripts/admob-build-config.mjs
+
+      - name: Configurar versionCode y versionName
+        run: |
+          set -euo pipefail
+          export APP_VERSION_CODE=$(( ${{ github.run_number }} * 100 + ${{ github.run_attempt }} ))
+          export APP_VERSION_NAME="1.0.${APP_VERSION_CODE}"
+          echo "Versión del build: ${APP_VERSION_NAME} (versionCode ${APP_VERSION_CODE})"
+          node scripts/patch-android-version.mjs
+
+      - name: Sync Android
+        run: npx cap sync android
+
+      - name: Decodificar keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/release.jks
+          test -s android/release.jks
+          keytool -list -keystore android/release.jks -storepass "$ANDROID_KEYSTORE_PASSWORD" > /dev/null
+
+      - name: Build release (AAB + APK)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew bundleRelease assembleRelease --no-daemon
+
+      - name: Firmar AAB con la clave de carga
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          AAB="android/app/build/outputs/bundle/release/app-release.aab"
+          test -f "$AAB"
+          jarsigner \
+            -keystore android/release.jks \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -keypass "$ANDROID_KEY_PASSWORD" \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            "$AAB" "$ANDROID_KEY_ALIAS"
+          jarsigner -verify "$AAB" | tail -3
+
+      - name: Firmar APK release
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          AAPT2="$ANDROID_HOME/build-tools/36.0.0/aapt2"
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/36.0.0"
+          APK_IN="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          APK_OUT="android/app/build/outputs/apk/release/app-release.apk"
+          test -f "$APK_IN"
+          "$BUILD_TOOLS/zipalign" -f -p 4 "$APK_IN" /tmp/finanbcv-release-aligned.apk
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks android/release.jks \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass "pass:$ANDROID_KEYSTORE_PASSWORD" \
+            --key-pass "pass:$ANDROID_KEY_PASSWORD" \
+            --out "$APK_OUT" /tmp/finanbcv-release-aligned.apk
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK_OUT" | head -5
+          "$AAPT2" dump badging "$APK_OUT" | grep -E "package: name='com.finanbcv.app'|versionCode='|versionName='" | head -3
+
+      - name: Verificar artefactos
+        run: |
+          set -euo pipefail
+          AAB="android/app/build/outputs/bundle/release/app-release.aab"
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          test -f "$AAB" && test -f "$APK"
+          unzip -l "$AAB" | grep -q 'base/manifest/AndroidManifest.xml'
+          unzip -p "$AAB" base/assets/public/ads-config.js | grep -q 'FINANBCV_ADS'
+          echo "AAB: $(stat -c%s "$AAB") bytes · APK: $(stat -c%s "$APK") bytes"
+
+      - name: Upload AAB y APK firmados
+        uses: actions/upload-artifact@v4
+        with:
+          name: FinanBCV-release
+          path: |
+            android/app/build/outputs/bundle/release/app-release.aab
+            android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
