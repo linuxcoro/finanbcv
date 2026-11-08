@@ -12,7 +12,7 @@ La aplicación permite llevar el control de abonos de clientes, calcular desglos
 * **Inicial Pagada en la Tarjeta:** cada crédito registrado muestra el monto de la inicial pagada en dólares y bolívares (según el % configurado), junto al total de la venta y el monto por cuota.
 * **Integración Nativa de Pago Móvil:** Configura tus datos bancarios una sola vez (Banco, Cédula/RIF y Teléfono) y genera plantillas de cobro personalizadas con 1 clic, indicando la parte que corresponde pagar (por ejemplo, "Parte 2 de 3").
 * **Comprobante al Instante:** al presionar **"Abonar Cuota"** se descuenta la parte pendiente, la tarjeta actualiza su progreso y se abre automáticamente el comprobante de Pago Móvil con la siguiente parte a pagar.
-* **Historial de Pagos por Crédito:** cada tarjeta abre una ventana con todos los movimientos del crédito (la inicial y cada abono de cuota), con fecha, número de parte y montos en dólares y bolívares, además del total pagado.
+* **Historial de Pagos por Crédito:** cada tarjeta abre una ventana con todos los abonos de cuota del crédito, con fecha, número de parte y montos en dólares y bolívares, además del total abonado en cuotas.
 * **Compartir Directo (Web Share API):** Envía la salida del Pago Móvil con el desglose de partes restantes directamente a WhatsApp, Telegram o SMS usando el menú nativo del dispositivo.
 * **Modo Oscuro / Claro:** Alternador de interfaz de usuario con almacenamiento persistente en el navegador para ahorrar batería en pantallas OLED.
 * **Persistencia Local (`localStorage`):** Guarda la lista de clientes, abonos y configuraciones directamente en el almacenamiento del dispositivo, sin requerir internet ni bases de datos externas.
@@ -100,7 +100,7 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 3. **Abonar y Compartir:**
    * Cuando el cliente realice un pago, presiona **"Abonar Cuota"** en su tarjeta.
    * El sistema descontará una parte restante, actualizará la tarjeta (inicial, total y cuota) y abrirá el comprobante con la siguiente parte a pagar (por ejemplo, "Parte 2 de 3").
-   * Para consultar el detalle, pulsa **"Historial de pagos (N)"** en la tarjeta: verás la inicial y cada abono con fecha, número de parte y montos en $ y Bs.
+   * Para consultar el detalle, pulsa **"Historial de pagos (N)"** en la tarjeta: verás cada abono con fecha, número de parte y montos en $ y Bs.
    * Presiona **"Copiar Texto"** o **"Compartir App"** para enviarlo por WhatsApp u otra aplicación.
 
 ---
@@ -143,7 +143,7 @@ git push -u origin main
 
 * **Requiere internet en el primer arranque:** Tailwind CSS y Lucide Icons se cargan por CDN; sin conexión no hay estilos ni iconos.
 * Los datos (`finanbcv_credits`, `finanbcv_settings`, `finanbcv_theme`) se guardan en el `localStorage` del WebView del teléfono; no hay sincronización entre dispositivos.
-* El historial de pagos se guarda dentro de `finanbcv_credits` (campo `payments`). Los créditos creados antes de esta versión no tienen detalle de pagos: su historial muestra la inicial y un resumen "pagos anteriores sin detalle".
+* El historial de pagos se guarda dentro de `finanbcv_credits` (campo `payments`). Los créditos creados antes de esta versión no tienen detalle de pagos: su historial muestra un resumen "pagos anteriores sin detalle".
 * El workflow copia `index.html` a `www/`; la carpeta generada no se versiona ni se edita a mano.
 
 ### Plan B si falla el build de Capacitor

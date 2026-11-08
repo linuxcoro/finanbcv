@@ -193,7 +193,8 @@ Se considera terminado cuando:
 **Estado:** ✅ hecho (mejora posterior a los pasos 1–5; no reabre el plan original).
 
 - Nuevo campo **aditivo** `payments` en cada crédito de `localStorage.finanbcv_credits`; los créditos antiguos se leen sin migración y muestran su inicial más un resumen "pagos anteriores sin detalle".
-- Botón **"Historial de pagos (N)"** en cada tarjeta → modal con la inicial (si existe) y cada abono, con fecha, número de parte y montos en `$` y `Bs`, además del total pagado.
+- Botón **"Historial de pagos (N)"** en cada tarjeta → modal con cada abono de cuota, con fecha, número de parte y montos en `$` y `Bs`, además del total abonado en cuotas.
 - El flujo de **"Abonar Cuota" no cambia**: sigue registrando el abono y abriendo el comprobante de Pago Móvil; el historial se actualiza solo.
 - Documentación actualizada en `documentaci_n_de_la_aplicaci_n.md`.
 - Commit: `feat: mostrar historial de pagos por crédito`.
+| 2026-11-08 | Post-plan | Se quitó la inicial del historial de pagos: ahora solo lista abonos de cuota y el total mostrado es el de cuotas. El `initialPercent` sigue visible en la tarjeta. Documentación actualizada. Commit `fix: excluir la inicial del historial de pagos`. |
