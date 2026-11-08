@@ -1,6 +1,6 @@
 # Plan de mejoras — FinanBCV
 
-**Fecha:** 2026-11-08 · **Estado global:** ✅ plan cerrado · ✅ 5 de 5 pasos ejecutados · ✅ repositorio en GitHub (`linuxcoro/finanbcv`, público) con `main` subido · ✅ automatización horaria de tasas activa · ✅ Fase C: APK generado en Actions (artifact `FinanBCV-apk`, run [#42521051694](https://github.com/linuxcoro/finanbcv/actions/runs/42521051694)) · Historial de pagos: ✅ añadido como mejora posterior · Pago inicial: ✅ eliminado
+**Fecha:** 2026-11-08 · **Estado global:** ✅ plan cerrado · ✅ 5 de 5 pasos ejecutados · ✅ repositorio en GitHub (`linuxcoro/finanbcv`, público) con `main` subido · ✅ automatización horaria de tasas activa · ✅ Fase C: APK generado en Actions (artifact `FinanBCV-apk`, run [#42521051694](https://github.com/linuxcoro/finanbcv/actions/runs/42521051694)) · ✅ APK actualizado con compartir nativo (run [#42523675049](https://github.com/linuxcoro/finanbcv/actions/runs/42523675049)) · Historial de pagos: ✅ añadido como mejora posterior · Pago inicial: ✅ eliminado
 **Archivo de la app:** `index.html` (SPA de un solo archivo)
 **Documentación:** `documentaci_n_de_la_aplicaci_n.md`
 
@@ -253,6 +253,7 @@ Prerrequisitos: cuenta de GitHub y autenticación. No hay `gh` instalado; la rut
 | 2026-11-08 | Paso 5 · Fase B | Automatización verificada de punta a punta: `actualizar-tasas.yml` ejecutado con `workflow_dispatch` desde Actions → run en verde que commiteó `tasas.json` como `github-actions[bot]` (`chore: actualizar tasas BCV`, commit `c67d705`) con JSON válido (`usd 897.5383`, `eur 1001.18602288`, fecha valor 2026-11-09) y **sin** disparar el build del APK. Los mismos pasos se probaron en local con el scraper real. Queda activo el cron `5 * * * *` (cada hora, minuto 5 UTC). |
 | 2026-11-08 | Post-plan | **Tasas desde GitHub:** `index.html` descarga `tasas.json` de `https://raw.githubusercontent.com/linuxcoro/finanbcv/main/tasas.json` (con cache busting) y elimina el flujo `POST /api/actualizar`; el fallback son las tasas guardadas en `localStorage`. Se corrigió el campo **Tasa BCV** a `step="any"` para aceptar la tasa exacta autocompletada sin bloquear el registro del crédito. Documentación y plan actualizados. Commit `3c4beec`. |
 | 2026-11-08 | Paso 5 · Fase C | APK generado en GitHub Actions: el primer run ([#42520918036](https://github.com/linuxcoro/finanbcv/actions/runs/42520918036)) falló en `android-actions/setup-android@v3`; se reemplazó por una verificación del SDK preinstalado (commit `e041a1a`). El segundo run ([#42521051694](https://github.com/linuxcoro/finanbcv/actions/runs/42521051694)) terminó en verde (10/10 pasos) y dejó el artifact `FinanBCV-apk` (3.379.141 bytes, `app-debug.apk`) disponible en Actions. Verificado además el flujo completo en Chrome headless (ajustes, alta de crédito, dos abonos, historial y persistencia) y la sintaxis JS con el comando del §4. |
+| 2026-11-08 | Post-plan | **Compartir en cualquier red social:** el botón **Pago Móvil** abre el selector nativo de apps con el texto del comprobante; en el APK mediante `@capacitor/share` y en navegadores con Web Share API, con el modal de copia como respaldo. El workflow instala `@capacitor/share@6` (verificado en `capacitor.plugins.json` antes de compilar). APK regenerado en el run [#42523675049](https://github.com/linuxcoro/finanbcv/actions/runs/42523675049): 10/10 pasos en verde y artifact `FinanBCV-apk` (3.383.095 bytes). Commit `97c10ea`. |
 
 ## 7. Mejora posterior — Historial de pagos por crédito
 
@@ -285,3 +286,14 @@ Prerrequisitos: cuenta de GitHub y autenticación. No hay `gh` instalado; la rut
 - `bcv_server.py` conserva `GET /app`, `GET /tasas.json` y `POST /api/actualizar`, aunque la app ya no usa ese endpoint para actualizarse.
 - El workflow del APK copia `index.html` y `tasas.json` a `www/`; la app empaquetada descarga las tasas de GitHub en tiempo de ejecución.
 - Documentación actualizada en `README_tasas.md` y `documentaci_n_de_la_aplicaci_n.md`.
+
+## 10. Mejora posterior — Compartir el Pago Móvil por cualquier red social
+
+**Estado:** ✅ hecho (mejora posterior; APK regenerado en CI).
+
+- El botón **Pago Móvil** abre directamente el selector nativo de apps (WhatsApp, Telegram, Instagram, SMS, correo, etc.) en vez de mostrar siempre el modal con el texto.
+- En el APK se usa el plugin oficial `@capacitor/share` (Android `Intent.ACTION_SEND`); en navegadores compatibles se usa la Web Share API.
+- Si no hay selector disponible (por ejemplo, un navegador de escritorio sin Web Share), se mantiene el modal con **Copiar Texto** y **Compartir en redes**.
+- El workflow **Build APK** instala `@capacitor/share@6`, por lo que el plugin aparece en `capacitor.plugins.json` y queda disponible en el APK.
+- APK regenerado: run [#42523675049](https://github.com/linuxcoro/finanbcv/actions/runs/42523675049), artifact `FinanBCV-apk` (3.383.095 bytes).
+- Documentación actualizada en `documentaci_n_de_la_aplicaci_n.md`. Commit: `feat: compartir Pago Móvil por cualquier app o red social`.
