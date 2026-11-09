@@ -51,6 +51,7 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 | `documentaci_n_de_la_aplicaci_n.md` | Esta documentación. |
 | `plan_de_mejoras.md` | Roadmap y bitácora de mejoras del proyecto. |
 | `capacitor.config.json` | Configuración e identidad de la app para Capacitor. |
+| `ads.config.json` | IDs de AdMob (App ID + unidades de banner e interstitial) y modo prueba/real. |
 | `scripts/admob-build-config.mjs` | Script del CI: genera `www/ads-config.js` y parchea el proyecto Android generado (`AndroidManifest.xml` y `strings.xml`) con el App ID de AdMob. |
 | `scripts/patch-android-version.mjs` | Script del CI: ajusta `versionCode` y `versionName` del proyecto Android generado (obligatorio para subir AAB a Play). |
 | `.github/workflows/build-apk.yml` | Workflow de GitHub Actions que compila el **APK debug** con anuncios de prueba. |
@@ -259,12 +260,30 @@ La app integra AdMob con el plugin comunitario `@capacitor-community/admob` (Goo
 ### Anuncios de prueba vs. anuncios reales
 
 * Por defecto el build usa los **IDs de prueba de Google** (`ca-app-pub-3940256099942544~...`), que nunca generan tráfico inválido ni ingresos. Sirven para verificar que todo funciona.
-* Para usar tus IDs reales, define en el repositorio (**Settings → Secrets and variables → Actions → Variables**) las variables:
-  * `ADMOB_APP_ID` — App ID de AdMob (formato `ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX`).
-  * `ADMOB_BANNER_ID` y `ADMOB_INTERSTITIAL_ID` — IDs de las unidades (formato `ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX`).
-  * `ADMOB_TEST_MODE` — `false` para producción.
-* Con `ADMOB_TEST_MODE=false` los tres IDs son obligatorios; `scripts/admob-build-config.mjs` falla el build si falta alguno o tiene formato inválido, para no publicar IDs de prueba mezclados.
-* Para probar con anuncios reales en tu propio teléfono sin generar tráfico inválido, busca el ID de test en `adb logcat` y regístralo con `initialize({ testingDevices: [...], initializeForTesting: true })` en el módulo `window.Ads`.
+* **Forma recomendada (versionada):** edita `ads.config.json` en la raíz con tus IDs reales y `"testMode": false`, haz commit y el siguiente build (debug o release) usará anuncios reales:
+
+```json
+{
+    "testMode": false,
+    "appId": "ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX",
+    "bannerId": "ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX",
+    "interstitialId": "ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX"
+}
+```
+
+* **Alternativa sin tocar el repo:** define en **Settings → Secrets and variables → Actions → Variables** `ADMOB_APP_ID`, `ADMOB_BANNER_ID`, `ADMOB_INTERSTITIAL_ID` y `ADMOB_TEST_MODE=false`. Las variables de Actions tienen prioridad sobre `ads.config.json`.
+* Con anuncios reales los tres IDs son obligatorios; `scripts/admob-build-config.mjs` falla el build si falta alguno o tiene formato inválido, para no publicar IDs de prueba mezclados.
+* Para probar sin generar tráfico inválido usa los IDs de prueba o registra tu teléfono como dispositivo de prueba (el ID aparece en `adb logcat`).
+
+### Obtener los IDs en AdMob
+
+1. Entra a [AdMob](https://apps.admob.com) → **Apps → Agregar app** → Android. Si la app todavía no está en Play, indica que aún no está listada (se puede vincular después).
+2. En **Configuración de la app** copia el **App ID** (`ca-app-pub-...~...`).
+3. En **Unidades de anuncio → Agregar unidad**: crea una de **Banner** y una de **Interstitial**; copia cada ID (`ca-app-pub-.../...`).
+4. Si vas a mostrar anuncios en el EEE/Reino Unido, crea el mensaje de consentimiento en **Privacidad y mensajería → GDPR** (la app ya integra el formulario UMP).
+5. Pega los 3 IDs en `ads.config.json`, pon `"testMode": false` y haz commit.
+
+> Recuerda: AdMob solo sirve anuncios reales de forma plena cuando la app está publicada en Play y verificada; mientras tanto puede entregar pocos anuncios o ninguno.
 
 ### Para que AdMob pague (checklist de publicación)
 

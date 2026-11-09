@@ -14,14 +14,20 @@
  * la config web) y otra vez después (parchea el proyecto nativo). Si la carpeta
  * `android/` todavía no existe, avisa y continúa.
  *
+ * IDs de anuncio (por orden de prioridad):
+ *   1. Variables de entorno del workflow (si están definidas).
+ *   2. Archivo versionado `ads.config.json` de la raíz del repositorio.
+ *   3. IDs de PRUEBA de Google (por defecto, para no publicar tráfico real por error).
+ *
  * Variables de entorno:
- *   ADMOB_TEST_MODE        "true" (por defecto) usa los IDs de PRUEBA de Google.
+ *   ADMOB_TEST_MODE        "false" para usar anuncios REALES; sin definir usa
+ *                          `testMode` de ads.config.json (por defecto true = prueba).
  *   ADMOB_APP_ID           App ID real, formato ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX
  *   ADMOB_BANNER_ID        Unidad de banner, formato ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX
  *   ADMOB_INTERSTITIAL_ID  Unidad de interstitial, mismo formato que el banner.
  *
- * Con ADMOB_TEST_MODE=false los tres IDs reales son obligatorios; si falta uno
- * el script falla para no publicar una app con IDs de prueba mezclados.
+ * Con anuncios reales los tres IDs son obligatorios; si falta uno o tiene mal
+ * formato, el script falla para no publicar IDs de prueba mezclados.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -30,6 +36,7 @@ import { join } from 'node:path';
 const ROOT = process.cwd();
 const WWW_DIR = join(ROOT, 'www');
 const WWW_CONFIG = join(WWW_DIR, 'ads-config.js');
+const ADS_CONFIG = join(ROOT, 'ads.config.json');
 const ANDROID_DIR = join(ROOT, 'android');
 const MANIFEST = join(ANDROID_DIR, 'app/src/main/AndroidManifest.xml');
 const STRINGS = join(ANDROID_DIR, 'app/src/main/res/values/strings.xml');
@@ -54,25 +61,50 @@ const fail = (message) => {
 
 const env = (name) => (process.env[name] || '').trim();
 
-const testMode = env('ADMOB_TEST_MODE').toLowerCase() !== 'false';
+/**
+ * Lee `ads.config.json` (versionado) con los IDs reales. Es la vía más simple
+ * para producción: se edita el archivo, se hace commit y el siguiente build ya
+ * usa los IDs reales. Las variables de entorno del workflow tienen prioridad
+ * (útil para probar IDs sin tocar el archivo).
+ */
+function loadRepoConfig() {
+    if (!existsSync(ADS_CONFIG)) return {};
+    try {
+        const parsed = JSON.parse(readFileSync(ADS_CONFIG, 'utf8'));
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            fail('ads.config.json debe contener un objeto JSON.');
+        }
+        return parsed;
+    } catch (error) {
+        fail(`ads.config.json no es JSON válido: ${error.message}`);
+    }
+}
+
+const repoConfig = loadRepoConfig();
+
+const pick = (envName, repoKey) => env(envName) || (typeof repoConfig[repoKey] === 'string' ? repoConfig[repoKey].trim() : '');
+
+// Prioridad: variable de entorno ADMOB_TEST_MODE > ads.config.json > prueba.
+const testModeEnv = env('ADMOB_TEST_MODE');
+const testMode = testModeEnv ? testModeEnv.toLowerCase() !== 'false' : repoConfig.testMode !== false;
 
 let ads;
 if (testMode) {
     ads = { ...TEST_IDS };
 } else {
     ads = {
-        appId: env('ADMOB_APP_ID'),
-        bannerId: env('ADMOB_BANNER_ID'),
-        interstitialId: env('ADMOB_INTERSTITIAL_ID')
+        appId: pick('ADMOB_APP_ID', 'appId'),
+        bannerId: pick('ADMOB_BANNER_ID', 'bannerId'),
+        interstitialId: pick('ADMOB_INTERSTITIAL_ID', 'interstitialId')
     };
     if (!APP_ID_RE.test(ads.appId)) {
-        fail(`ADMOB_APP_ID inválido o ausente: "${ads.appId}" (formato ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX).`);
+        fail(`App ID de AdMob inválido o ausente: "${ads.appId}" (formato ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX).`);
     }
     if (!UNIT_ID_RE.test(ads.bannerId)) {
-        fail(`ADMOB_BANNER_ID inválido o ausente: "${ads.bannerId}" (formato ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX).`);
+        fail(`ID del banner inválido o ausente: "${ads.bannerId}" (formato ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX).`);
     }
     if (!UNIT_ID_RE.test(ads.interstitialId)) {
-        fail(`ADMOB_INTERSTITIAL_ID inválido o ausente: "${ads.interstitialId}" (formato ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX).`);
+        fail(`ID del interstitial inválido o ausente: "${ads.interstitialId}" (formato ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX).`);
     }
 }
 
@@ -170,4 +202,6 @@ function patchStrings() {
 writeWebConfig();
 patchManifest();
 patchStrings();
+const fuente = testMode ? 'IDs de prueba de Google' : (env('ADMOB_APP_ID') ? 'variables de Actions' : 'ads.config.json');
+log(`fuente: ${fuente}`);
 log(`modo: ${testMode ? 'PRUEBA' : 'REAL'} · app ${ads.appId} · banner ${ads.bannerId} · interstitial ${ads.interstitialId}`);
