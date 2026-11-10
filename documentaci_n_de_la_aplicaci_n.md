@@ -8,11 +8,12 @@ La aplicación permite llevar el control de abonos de clientes, calcular el mont
 
 ## 🚀 Características Principales
 
-* **Cálculo Automático a Tasa BCV:** Convierte el monto en dólares a bolívares según la tasa ingresada y divide el monto exacto en las cuotas acordadas.
-* **Tasas BCV Integradas (USD y EUR):** la pantalla principal muestra la tasa oficial del dólar y del euro con su fecha valor y hora de actualización. El botón **Actualizar** descarga `tasas.json` desde el repositorio en GitHub (`raw.githubusercontent.com`) y coloca la tasa del dólar en la calculadora sin pisar una tasa personalizada.
+* **Cálculo Automático a Tasa BCV:** Convierte el monto (en dólares o en euros, según la tasa elegida) a bolívares según la tasa ingresada y divide el monto exacto en las cuotas acordadas.
+* **Tasas BCV Integradas (USD y EUR):** la pantalla principal muestra la tasa oficial del dólar y del euro con su fecha valor y hora de actualización. El botón **Actualizar** descarga `tasas.json` desde el repositorio en GitHub (`raw.githubusercontent.com`) y coloca por defecto la tasa del dólar en la calculadora sin pisar una tasa personalizada. Las tarjetas **USD** y **EUR** son seleccionables: al tocar cualquiera se aplica su tasa exacta al campo **Tasa BCV**, que ajusta su etiqueta a `Bs/$` o `Bs/€`.
+* **Moneda activa en toda la app:** al elegir la tasa del dólar o la del euro, la calculadora cambia el símbolo de los montos (`$` o `€`), la etiqueta a **Monto Total ($ USD)** o **Monto Total (€ EUR)**, el resumen en vivo y el badge del formulario (`Tasa BCV · EUR`). Cada crédito guarda la moneda con la que se registró, así que **Créditos Activos**, el historial de pagos y el comprobante de Pago Móvil muestran el símbolo correcto aunque luego se cambie la tasa. La moneda elegida se recuerda en `localStorage` (`finanbcv_moneda`) y una actualización de tasas la conserva.
 * **Integración Nativa de Pago Móvil:** Configura tus datos bancarios una sola vez (Banco, Cédula/RIF y Teléfono) y genera plantillas de cobro personalizadas con 1 clic, indicando la parte que corresponde pagar (por ejemplo, "Parte 2 de 3").
 * **Comprobante al Instante:** al presionar **"Abonar Cuota"** se descuenta la parte pendiente, la tarjeta actualiza su progreso y se abre automáticamente el comprobante de Pago Móvil con la siguiente parte a pagar.
-* **Historial de Pagos por Crédito:** cada tarjeta abre una ventana con todos los abonos de cuota del crédito, con fecha, número de parte y montos en dólares y bolívares, además del total abonado en cuotas.
+* **Historial de Pagos por Crédito:** cada tarjeta muestra directamente todos los abonos de cuota del crédito, con fecha, número de parte y montos en dólares y bolívares, además del total abonado en cuotas.
 * **Compartir Directo (selector nativo de apps):** el botón **Pago Móvil** abre el menú de compartir del dispositivo (WhatsApp, Telegram, Instagram, SMS, correo o cualquier red social instalada). En el APK usa el plugin `@capacitor/share` y en el navegador la Web Share API; si no hay selector disponible, muestra el texto para copiarlo.
 * **Anuncios AdMob (solo en el APK):** banner adaptativo en la parte inferior y anuncios interstitial en cortes naturales (al registrar un crédito o al cerrar el comprobante de abono), con consentimiento UMP y anuncios de prueba por defecto. En el navegador la monetización queda desactivada.
 * **Modo Oscuro / Claro:** Alternador de interfaz de usuario con almacenamiento persistente en el navegador para ahorrar batería en pantallas OLED.
@@ -67,7 +68,8 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
   "id": 1700000000000,
   "clientName": "Juan Pérez (0412-1112233)",
   "totalUsd": 100.00,
-  "bcvRate": 36.50,
+  "bcvRate": 40.10,
+  "currency": "eur",
   "totalInstallments": 2,
   "remainingInstallments": 1,
   "installmentUsd": 50.00,
@@ -79,12 +81,14 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
       "part": 1,
       "totalParts": 2,
       "amountUsd": 50.00,
-      "amountBs": 1825.00,
-      "rate": 36.50
+      "amountBs": 2005.00,
+      "rate": 40.10
     }
   ]
 }
 ```
+
+> Nota: `currency` (`"usd"` o `"eur"`) indica la moneda de la tasa y de los montos del crédito; los nombres `totalUsd` e `installmentUsd` se conservan por compatibilidad, pero guardan el monto en esa moneda. Los créditos guardados por versiones anteriores no tienen `currency`: la app los asume en dólares (`usd`) y no altera sus montos. Los abonos heredan la moneda de su crédito.
 
 > Nota: los créditos guardados por versiones anteriores pueden conservar `initialPercent`; la app ya no lo usa ni lo muestra (mantiene el monto por cuota que se calculó al registrarlos).
 
@@ -104,19 +108,19 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 1. **Tasas del BCV:**
    * La sección **Tasas del BCV** muestra el dólar (USD) y el euro (EUR) con la fecha valor y la hora de actualización.
    * Pulsa **Actualizar** para descargar las tasas publicadas en GitHub (`raw.githubusercontent.com/linuxcoro/finanbcv/main/tasas.json`); si no hay conexión se usan las últimas guardadas.
-   * La tasa del dólar se coloca sola en la calculadora; toca la tarjeta **USD** para reaplicarla si escribiste una tasa a mano.
+   * La tasa del dólar se coloca sola en la calculadora; toca la tarjeta **USD** o **EUR** para aplicar esa tasa exacta. El campo **Tasa BCV** cambia su etiqueta y el formulario completo cambia de moneda: el monto pasa a **Monto Total ($ USD)** o **Monto Total (€ EUR)**, el prefijo del campo y los cálculos en vivo usan `$` o `€`, y el badge muestra `Tasa BCV · EUR` cuando corresponde. Una tasa escrita a mano no se sobrescribe al actualizar y conserva la moneda elegida.
 2. **Configuración Inicial:**
    * Haz clic en el icono del código QR / Ajustes en la barra superior.
    * Ingresa tu Banco, Cédula/RIF y número de teléfono de Pago Móvil.
 3. **Registrar Venta:**
    * Introduce el nombre y teléfono del cliente.
-   * Ingresa el total en USD y la tasa BCV del día (se rellena con la del dólar).
+   * Ingresa el monto en la moneda elegida (`$ USD` o `€ EUR`) y la tasa BCV del día (se rellena con la del dólar o con la del euro si tocaste su tarjeta).
    * Define el número de partes.
-   * Presiona **"Registrar Crédito"**.
+   * Presiona **"Registrar Crédito"**: el crédito queda asociado a la moneda de la tasa usada y su tarjeta muestra los montos con ese símbolo (`$` o `€`).
 4. **Abonar y Compartir:**
    * Cuando el cliente realice un pago, presiona **"Abonar Cuota"** en su tarjeta.
    * El sistema descontará una parte restante, actualizará la tarjeta (total y cuota) y abrirá el comprobante con la siguiente parte a pagar (por ejemplo, "Parte 2 de 3").
-   * Para consultar el detalle, pulsa **"Historial de pagos (N)"** en la tarjeta: verás cada abono con fecha, número de parte y montos en $ y Bs.
+   * El **historial de pagos** aparece directamente al final de cada tarjeta: cada abono con fecha, número de parte y montos en la moneda del crédito (`$` o `€`) y en bolívares, además del total abonado. Se actualiza solo al abonar.
    * Presiona **"Pago Móvil"** para abrir el selector de apps y compartir el comprobante por WhatsApp, Telegram o cualquier red social. Si el selector no está disponible, se abre una ventana con el texto, los botones **"Copiar Texto"** y **"Compartir en redes"**.
 
 ### Actualizar `tasas.json` a mano
@@ -181,8 +185,9 @@ git push -u origin main
 * **Requiere internet:** Tailwind CSS y Lucide Icons se cargan por CDN y las tasas se descargan de GitHub; sin conexión no hay estilos ni iconos y se muestran las últimas tasas guardadas en `localStorage`.
 * **Las tasas vienen de GitHub:** `index.html` descarga `tasas.json` desde `raw.githubusercontent.com`, así que no necesita servidor local y también funciona abierta con doble clic (`file://`). Si la descarga falla, usa las últimas tasas guardadas en `localStorage` (`finanbcv_tasas`).
 * En el APK las tasas también se descargan de GitHub al abrir la app y al pulsar **Actualizar**; el `www/tasas.json` que copia el workflow ya no se usa para actualizar.
-* Los datos (`finanbcv_credits`, `finanbcv_settings`, `finanbcv_theme`) se guardan en el `localStorage` del WebView del teléfono; no hay sincronización entre dispositivos.
-* El historial de pagos se guarda dentro de `finanbcv_credits` (campo `payments`). Los créditos creados antes de esta versión no tienen detalle de pagos: su historial muestra un resumen "pagos anteriores sin detalle".
+* Los datos (`finanbcv_credits`, `finanbcv_settings`, `finanbcv_theme`) se guardan en el `localStorage` del WebView del teléfono; no hay sincronización entre dispositivos. La moneda elegida en la calculadora se guarda aparte en `finanbcv_moneda` (`usd` o `eur`).
+* Los respaldos incluyen el campo `currency` de cada crédito; al restaurar un respaldo antiguo (sin ese campo) los créditos se completan como `usd`.
+* El historial de pagos se guarda dentro de `finanbcv_credits` (campo `payments`) y se muestra directamente en cada tarjeta. Los créditos creados antes de esta versión no tienen detalle de pagos: su historial muestra un resumen "pagos anteriores sin detalle".
 * **Anuncios:** el banner y los interstitial necesitan internet y Google Play Services; si faltan, la app funciona igual, sin anuncios. Un APK instalado a mano **no genera ingresos**: AdMob solo sirve anuncios reales cuando la app está publicada en Google Play y verificada (ver la sección de monetización).
 * El workflow copia `index.html` a `www/` y genera `www/ads-config.js`; la carpeta generada no se versiona ni se edita a mano.
 
@@ -252,7 +257,7 @@ La app integra AdMob con el plugin comunitario `@capacitor-community/admob` (Goo
 
 ### Formatos y ubicación
 
-* **Banner adaptativo** (`ADAPTIVE_BANNER`) anclado abajo, visible solo en la pantalla principal. Se oculta mientras hay un modal abierto (Ajustes, Compartir o Historial) para no tapar botones, y se reanuda al cerrarlo. El alto real que informa AdMob se reserva con la variable CSS `--admob-banner-h`, así no tapa la última tarjeta ni el toast.
+* **Banner adaptativo** (`ADAPTIVE_BANNER`) anclado abajo, visible solo en la pantalla principal. Se oculta mientras hay un modal abierto (Ajustes, Respaldo o Compartir) para no tapar botones, y se reanuda al cerrarlo. El alto real que informa AdMob se reserva con la variable CSS `--admob-banner-h`, así no tapa la última tarjeta ni el toast.
 * **Interstitial** en dos cortes naturales: al registrar un crédito y al cerrar el comprobante después de abonar una cuota. Nunca aparece encima de un modal ni al abrir la app; hay un límite de **1 cada 3 minutos** y se precarga para no hacer esperar.
 * **Consentimiento (UMP):** al iniciar se consulta el estado de consentimiento; si es obligatorio se muestra el formulario de Google y, si la persona no autoriza anuncios, no se solicita ninguno. Cuando UMP exige un punto de acceso de privacidad, aparece el botón **Privacidad y anuncios** en Ajustes.
 * **Sin anuncios en el comprobante:** el banner se oculta antes de abrir el modal de Pago Móvil y el interstitial se difiere hasta que se cierra, para evitar clics accidentales.

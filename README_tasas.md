@@ -160,8 +160,8 @@ extracción de USD/EUR, fecha valor y el contexto de la plantilla.
 
 ## Tasas en la app (`index.html`)
 
-La app muestra una tarjeta con el **dólar (USD)** y el **euro (EUR)** y un
-botón **Actualizar**. Al cargar y al pulsar el botón:
+La app muestra dos tarjetas, **dólar (USD)** y **euro (EUR)**, y un botón
+**Actualizar**. Al cargar y al pulsar el botón:
 
 1. Descarga `tasas.json` desde GitHub:
    <https://raw.githubusercontent.com/linuxcoro/finanbcv/main/tasas.json>
@@ -173,8 +173,16 @@ El workflow horario mantiene ese archivo al día, así que la app no necesita
 servidor local ni que se regenere `tasas.json` a mano para actualizarse.
 
 La tasa del dólar se coloca automáticamente en el campo **Tasa BCV (Bs/$)** de
-la calculadora (sin pisar una tasa escrita a mano); la tarjeta del dólar también
-permite aplicarla con un toque. La del euro se muestra como referencia.
+la calculadora (sin pisar una tasa escrita a mano); las tarjetas del **dólar** y
+del **euro** permiten aplicar su tasa exacta con un toque. Al elegir el euro, el
+campo pasa a mostrarse como **Tasa BCV (Bs/€)**, el badge de la calculadora
+indica `Tasa BCV · EUR` y todo el formulario cambia a euros: el monto se muestra
+como **Monto Total (€ EUR)**, el prefijo de los campos y los cálculos en vivo
+usan `€`, y el crédito registrado queda asociado a esa moneda. En **Créditos
+Activos**, el historial de pagos y el comprobante de Pago Móvil cada crédito
+conserva el símbolo con el que se registró (`$` o `€`). Una actualización
+posterior de tasas conserva la moneda elegida (guardada en
+`localStorage` como `finanbcv_moneda`).
 
 ### Servir la app con el servidor
 

@@ -204,7 +204,7 @@ Prerrequisitos: cuenta de GitHub y autenticación. No hay `gh` instalado; la rut
   3. "Abonar Cuota" → comprobar que el mensaje dice "Parte a pagar: 2 de 2" (la siguiente parte) y probar "Copiar Texto".
   4. Segundo abono → "Parte 2 de 2" y estado "Pagado Total".
   5. Recargar la página y confirmar la persistencia de `finanbcv_credits`, `finanbcv_settings` y `finanbcv_theme`.
-- **Tasas remotas:** comprobar en el navegador que el estado dice “Tasas actualizadas desde GitHub” y que el botón **Actualizar** conserva los valores; sin red debe avisar y recurrir a las tasas de `localStorage`. Verificado en Chrome headless tanto por HTTP como con `file://`.
+- **Tasas remotas:** comprobar que al cargar o pulsar **Actualizar** las tasas se pintan sin dejar un mensaje fijo de éxito (el estado queda oculto), que el botón conserva los valores y que las tarjetas USD/EUR aplican su tasa; sin red debe avisar y recurrir a las tasas de `localStorage`. Verificado en Chrome headless tanto por HTTP como con `file://`.
 - **Datos heredados:** probar con un crédito antiguo sin `initialPercent` en `localStorage` para validar el fallback.
 - **Validación de los workflows** (no se pueden ejecutar en local): parsear ambos YAML con PyYAML y comprobar su estructura:
 
@@ -322,3 +322,26 @@ Prerrequisitos: cuenta de GitHub y autenticación. No hay `gh` instalado; la rut
 - `.gitignore` excluye `.release/`, `*.jks`, `*.keystore` y `key.properties`; el keystore se entrega aparte y nunca se versiona.
 - El APK release se firma con la misma clave en cada build, así que instalar/actualizar deja de fallar por firmas distintas.
 - Documentación actualizada con el paso a paso de secrets, AAB y prueba interna de Play.
+
+## 13. Mejora posterior — Selección EUR, mensaje de tasas e historial inline
+
+**Estado:** ✅ hecho.
+
+- La tarjeta **EURO · EUR** ahora es un botón como la del dólar: al tocarla aplica su tasa exacta al campo **Tasa BCV**, que cambia la etiqueta a `(Bs/€)` y el badge del formulario a `Tasa BCV · EUR`. La tarjeta activa se resalta y una tasa escrita a mano deja de mostrarse como aplicada.
+- El autocompletado usa `lastAutoRate`/`lastAutoCurrency`: si el usuario eligió EUR, una actualización posterior refresca con el euro y no lo pisa con USD; una tasa personalizada se conserva.
+- Se eliminó el mensaje fijo `Tasas actualizadas desde GitHub. Toca el dólar para usarlo en la calculadora.`; el estado queda oculto al éxito y se conservan los avisos de carga, respaldo sin conexión y error. El toast breve de la actualización manual se mantiene.
+- El **historial de pagos** se muestra directamente al final de cada tarjeta de Créditos Activos, con parte, fecha, montos `$`/`Bs`, total abonado, estado vacío y resumen de créditos heredados. Se retiraron el botón “Historial de pagos (N)” y el modal `#modalHistory`.
+- Verificado con `node --check` sobre el JS inline y una prueba headless en Chrome (27 comprobaciones PASS: tasas, EUR, persistencia tras actualizar, tasa manual, historial vacío/heredado/actualizado y aviso sin conexión), además de capturas móvil/escritorio.
+- Documentación actualizada en `documentaci_n_de_la_aplicaci_n.md` y `README_tasas.md`; sin cambios en el esquema de `finanbcv_credits`, en `payments` ni en el formato de respaldo.
+
+## 14. Mejora posterior — Moneda activa ($/€) en formulario y Créditos Activos
+
+**Estado:** ✅ hecho.
+
+- Al tocar la tarjeta **USD** o **EUR**, el formulario completo cambia de moneda: la etiqueta pasa a **Monto Total ($ USD)** o **Monto Total (€ EUR)**, el prefijo del campo y los cálculos en vivo usan `$` o `€`, la etiqueta de la tasa queda en `(Bs/$)` o `(Bs/€)` y el badge en `Tasa BCV` o `Tasa BCV · EUR`.
+- La moneda elegida es un estado único (`formCurrency`) que también decide con qué tasa se autocompleta el campo en cada actualización; se guarda en `localStorage` (`finanbcv_moneda`) y se conserva tras registrar un crédito o recargar la app. Sustituye a `lastAutoCurrency`.
+- Cada crédito guarda `currency` (`usd`/`eur`). **Créditos Activos**, el historial de pagos y el mensaje de **Pago Móvil** muestran el símbolo correcto del crédito (`$` o `€`), sin mezclarlo con la tasa elegida después. El desglose indica además el código de la moneda (`USD`/`EUR`).
+- Compatibilidad: los créditos y respaldos antiguos sin `currency` se asumen en dólares (`usd`) y no cambian sus montos; al restaurar un respaldo o guardar de nuevo, el campo se completa. El formato de respaldo sigue siendo la versión 1 (campo aditivo).
+- Verificado con `node --check` sobre los scripts inline y una prueba headless en Chrome con 58 comprobaciones PASS: selección USD→EUR→USD, etiquetas/prefijo/resultados, tasa manual, alta de crédito EUR y USD, historial y Pago Móvil en `€`, crédito heredado sin `currency`, respaldo y persistencia entre recargas (la moneda EUR vuelve y autocompleta la tasa correcta).
+- Captura móvil (430 px) revisada visualmente en modo EUR: formulario, resultado `€150,00`, tarjeta EUR con `Bs/€` y tarjeta heredada en `$`.
+- Documentación actualizada en `documentaci_n_de_la_aplicaci_n.md` (características, guía de uso, esquema JSON y `localStorage`) y `README_tasas.md`.
