@@ -9,7 +9,7 @@ La aplicación permite llevar el control de abonos de clientes, calcular el mont
 ## 🚀 Características Principales
 
 * **Cálculo Automático a Tasa BCV:** Convierte el monto (en dólares o en euros, según la tasa elegida) a bolívares según la tasa ingresada y divide el monto exacto en las cuotas acordadas.
-* **Tasas BCV Integradas (USD y EUR):** la pantalla principal muestra la tasa oficial del dólar y del euro con su fecha valor y hora de actualización. El botón **Actualizar** descarga `tasas.json` desde el repositorio en GitHub (`raw.githubusercontent.com`) y coloca por defecto la tasa del dólar en la calculadora sin pisar una tasa personalizada. Las tarjetas **USD** y **EUR** son seleccionables: al tocar cualquiera se aplica su tasa exacta al campo **Tasa BCV**, que ajusta su etiqueta a `Bs/$` o `Bs/€`.
+* **Tasas BCV Integradas (USD y EUR):** la pantalla principal muestra la tasa oficial del dólar y del euro con su fecha valor y hora de actualización. El botón **Actualizar** descarga `tasas.json` por la API de GitHub (repo privado + PAT de solo lectura) y coloca por defecto la tasa del dólar en la calculadora sin pisar una tasa personalizada. Las tarjetas **USD** y **EUR** son seleccionables: al tocar cualquiera se aplica su tasa exacta al campo **Tasa BCV**, que ajusta su etiqueta a `Bs/$` o `Bs/€`.
 * **Moneda activa en toda la app:** al elegir la tasa del dólar o la del euro, la calculadora cambia el símbolo de los montos (`$` o `€`), la etiqueta a **Monto Total ($ USD)** o **Monto Total (€ EUR)**, el resumen en vivo y el badge del formulario (`Tasa BCV · EUR`). Cada crédito guarda la moneda con la que se registró, así que **Créditos Activos**, el historial de pagos y el comprobante de Pago Móvil muestran el símbolo correcto aunque luego se cambie la tasa. La moneda elegida se recuerda en `localStorage` (`finanbcv_moneda`) y una actualización de tasas la conserva.
 * **Integración Nativa de Pago Móvil:** Configura tus datos bancarios una sola vez (Banco, Cédula/RIF y Teléfono) y genera plantillas de cobro personalizadas con 1 clic, indicando la parte que corresponde pagar (por ejemplo, "Parte 2 de 3").
 * **Comprobante al Instante:** al presionar **"Abonar Cuota"** se descuenta la parte pendiente, la tarjeta actualiza su progreso y se abre automáticamente el comprobante de Pago Móvil con la siguiente parte a pagar.
@@ -45,7 +45,7 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 | Archivo | Descripción |
 |---------|-------------|
 | `index.html` | Aplicación completa (SPA de un solo archivo). |
-| `tasas.json` | Ya no se versiona en este repositorio: la app descarga las tasas de [`linuxcoro/bcv_scraper`](https://github.com/linuxcoro/bcv_scraper). |
+| `tasas.json` | Ya no se versiona en este repositorio: la app las descarga de [`linuxcoro/bcv_scraper`](https://github.com/linuxcoro/bcv_scraper) por la API de GitHub con un PAT de solo lectura. |
 | `bcv_server.py` | Servidor local opcional: sirve la app y actualiza las tasas con `POST /api/actualizar`. |
 | `templates/tasas.html` | Página de tasas del servidor (modo servidor y estático). |
 | `README_tasas.md` | Guía del scraper, del servidor y de la integración con la app. |
@@ -55,6 +55,7 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 | `ads.config.json` | IDs de AdMob (App ID + unidades de banner e interstitial) y modo prueba/real. |
 | `scripts/admob-build-config.mjs` | Script del CI: genera `www/ads-config.js` y parchea el proyecto Android generado (`AndroidManifest.xml` y `strings.xml`) con el App ID de AdMob. |
 | `scripts/patch-android-version.mjs` | Script del CI: ajusta `versionCode` y `versionName` del proyecto Android generado (obligatorio para subir AAB a Play). |
+| `scripts/inject-rates-token.mjs` | Script del CI: inyecta el PAT de solo lectura (`BCV_TASAS_PAT`) en `www/index.html`; el repo conserva el marcador `__RATES_PAT__`. |
 | `.github/workflows/build-apk.yml` | Workflow de GitHub Actions que compila el **APK debug** con anuncios de prueba. |
 | `.github/workflows/build-release.yml` | Workflow manual que compila el **AAB firmado** para Google Play y un **APK release** firmado con la clave de carga. |
 
@@ -107,7 +108,7 @@ La aplicación está construida sobre una arquitectura limpia de **un solo archi
 
 1. **Tasas del BCV:**
    * La sección **Tasas del BCV** muestra el dólar (USD) y el euro (EUR) con la fecha valor y la hora de actualización.
-   * Pulsa **Actualizar** para descargar las tasas publicadas en GitHub (`raw.githubusercontent.com/linuxcoro/finanbcv/main/tasas.json`); si no hay conexión se usan las últimas guardadas.
+   * Pulsa **Actualizar** para descargar las tasas por la API de GitHub (repo `linuxcoro/bcv_scraper` + PAT de solo lectura); si no hay conexión se usan las últimas guardadas.
    * La tasa del dólar se coloca sola en la calculadora; toca la tarjeta **USD** o **EUR** para aplicar esa tasa exacta. El campo **Tasa BCV** cambia su etiqueta y el formulario completo cambia de moneda: el monto pasa a **Monto Total ($ USD)** o **Monto Total (€ EUR)**, el prefijo del campo y los cálculos en vivo usan `$` o `€`, y el badge muestra `Tasa BCV · EUR` cuando corresponde. Una tasa escrita a mano no se sobrescribe al actualizar y conserva la moneda elegida.
 2. **Configuración Inicial:**
    * Haz clic en el icono del código QR / Ajustes en la barra superior.
@@ -131,8 +132,16 @@ python3 bcv_scraper.py > tasas.json 2>/dev/null
 
 Este comando solo actualiza la copia local (útil para el servidor o para
 commitear). La app **no** lee ese archivo local: al pulsar **Actualizar**
-descarga el `tasas.json` publicado en GitHub, que el workflow horario
-regenera. Guía completa en [`README_tasas.md`](README_tasas.md).
+descarga el `tasas.json` por la API de GitHub (con el PAT inyectado en el
+APK), que el workflow horario regenera. Guía completa en
+[`README_tasas.md`](README_tasas.md).
+
+> El APK necesita el secreto `BCV_TASAS_PAT` (PAT fine-grained con Contents:
+> Read-only sobre `linuxcoro/bcv_scraper`). Sin él,
+> `scripts/inject-rates-token.mjs` falla y el build se detiene.
+
+> No se usa `GITHUB_TOKEN`: GitHub reserva el prefijo `GITHUB_` y el token
+> automático no accede a `bcv_scraper` ni sobrevive al job.
 
 > En GitHub, el workflow **Actualizar tasas BCV**
 > (`.github/workflows/actualizar-tasas.yml`) ejecuta ese mismo comando **cada
@@ -183,8 +192,9 @@ git push -u origin main
 ### Limitaciones
 
 * **Requiere internet:** Tailwind CSS y Lucide Icons se cargan por CDN y las tasas se descargan de GitHub; sin conexión no hay estilos ni iconos y se muestran las últimas tasas guardadas en `localStorage`.
-* **Las tasas vienen de GitHub:** `index.html` descarga `tasas.json` desde `raw.githubusercontent.com`, así que no necesita servidor local y también funciona abierta con doble clic (`file://`). Si la descarga falla, usa las últimas tasas guardadas en `localStorage` (`finanbcv_tasas`).
-* En el APK las tasas también se descargan de GitHub al abrir la app y al pulsar **Actualizar**; el `www/tasas.json` que copia el workflow ya no se usa para actualizar.
+* **Las tasas vienen de GitHub:** `index.html` consulta la API de contenidos de `linuxcoro/bcv_scraper` con un PAT de solo lectura (inyectado al compilar el APK). No necesita servidor local; sin token (por ejemplo, abierta desde `file://` o desde el repo público) usa las últimas tasas guardadas en `localStorage` (`finanbcv_tasas`).
+* En el APK las tasas se descargan de la API al abrir la app y al pulsar **Actualizar**; el `www/tasas.json` que copia el workflow ya no se usa para actualizar.
+* El PAT va dentro del APK y se puede extraer. No publiques la app en Play Store con ese token: antes de publicarla, deja el JSON público o usa un intermediario que guarde el token en el servidor.
 * Los datos (`finanbcv_credits`, `finanbcv_settings`, `finanbcv_theme`) se guardan en el `localStorage` del WebView del teléfono; no hay sincronización entre dispositivos. La moneda elegida en la calculadora se guarda aparte en `finanbcv_moneda` (`usd` o `eur`).
 * Los respaldos incluyen el campo `currency` de cada crédito; al restaurar un respaldo antiguo (sin ese campo) los créditos se completan como `usd`.
 * El historial de pagos se guarda dentro de `finanbcv_credits` (campo `payments`) y se muestra directamente en cada tarjeta. Los créditos creados antes de esta versión no tienen detalle de pagos: su historial muestra un resumen "pagos anteriores sin detalle".

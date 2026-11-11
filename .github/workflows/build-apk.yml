@@ -53,10 +53,20 @@ jobs:
           ADMOB_BANNER_ID: ${{ vars.ADMOB_BANNER_ID }}
           ADMOB_INTERSTITIAL_ID: ${{ vars.ADMOB_INTERSTITIAL_ID }}
           ADMOB_TEST_MODE: ${{ vars.ADMOB_TEST_MODE }}
+          BCV_TASAS_PAT: ${{ secrets.BCV_TASAS_PAT }}
         run: |
+          set -euo pipefail
           mkdir -p www
           cp index.html www/index.html
           if [ -f tasas.json ]; then cp tasas.json www/tasas.json; fi
+          # Inyecta el PAT de solo lectura de GitHub en la copia que va al APK.
+          node scripts/inject-rates-token.mjs
+          # Falla si el marcador sobrevivió o si falta la línea que usa el token.
+          if grep -q '__RATES_PAT__' www/index.html; then
+            echo "::error::www/index.html conserva el marcador __RATES_PAT__; el PAT no se inyectó."
+            exit 1
+          fi
+          grep -q "const RATES_TOKEN = '" www/index.html
           # Genera www/ads-config.js (IDs de prueba por defecto o los de las variables del repo).
           node scripts/admob-build-config.mjs
 
@@ -98,8 +108,16 @@ jobs:
           unzip -p "$APK" assets/capacitor.plugins.json | grep -q '@capacitor-community/admob'
           unzip -p "$APK" assets/public/ads-config.js | grep -q 'FINANBCV_ADS'
 
+          # El APK no debe llevar el marcador: la copia compilada debe tener el PAT.
+          if unzip -p "$APK" assets/public/index.html | grep -q '__RATES_PAT__'; then
+            echo "::error::El APK contiene el marcador __RATES_PAT__; el PAT no se inyectó."
+            exit 1
+          fi
+          unzip -p "$APK" assets/public/index.html | grep -q "const RATES_TOKEN = '"
+
           echo "APK con AdMob verificado: $(stat -c%s "$APK") bytes"
 
+      # El APK contiene el PAT BCV_TASAS_PAT: no compartas este artifact.
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:

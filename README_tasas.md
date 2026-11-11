@@ -14,13 +14,13 @@ HTML y exponerlas como API JSON.
 | `templates/tasas.html` | Plantilla de la página de tasas (modo servidor y modo estático). |
 | `requirements-tasas.txt` | Dependencias de Python. |
 | `test_bcv_scraper.py` | Pruebas sin red del parser y del formato de números. |
-| `tasas.json` | Últimas tasas USD/EUR generadas por `bcv_scraper.py`. La app las descarga desde GitHub. |
+| `tasas.json` | Últimas tasas USD/EUR generadas por `bcv_scraper.py`. La app las descarga por la API de GitHub con un PAT de solo lectura. |
 | `tasas.html` | Ejemplo generado: página estática con las tasas del día. |
 | `.github/workflows/actualizar-tasas.yml` | Workflow de GitHub Actions que regenera `tasas.json` cada hora y lo commitea. |
 
-`index.html` (la app FinanBCV) muestra las tasas de USD y EUR desde el
-`tasas.json` publicado en GitHub y tiene un botón **Actualizar**; ver la
-última sección.
+`index.html` (la app FinanBCV) muestra las tasas de USD y EUR leyendo
+`tasas.json` por la API de GitHub (repo privado + PAT de solo lectura) y
+tiene un botón **Actualizar**; ver la última sección.
 
 ## Instalación
 
@@ -82,6 +82,23 @@ workflow los ignora con `paths-ignore`).
 
 En local el flujo sigue siendo manual (`python3 bcv_scraper.py > tasas.json`);
 la automatización solo actúa cuando el proyecto está en GitHub.
+
+### Acceso desde la app (repo privado)
+
+La app ya no lee la URL raw: usa la API de contenidos
+(`api.github.com/repos/linuxcoro/bcv_scraper/contents/tasas.json`) con un PAT
+de solo lectura. El PAT se inyecta al compilar el APK desde el secreto
+`BCV_TASAS_PAT`; el `index.html` público conserva el marcador `__RATES_PAT__`
+y, sin token, la app usa las últimas tasas guardadas en `localStorage`.
+
+> No se usa `GITHUB_TOKEN`: GitHub reserva el prefijo `GITHUB_` para el token
+> automático del workflow, que solo accede al repositorio donde corre y caduca
+> al terminar el job. El secreto debe ser `BCV_TASAS_PAT`, un PAT fine-grained
+> con `Contents: Read-only` sobre `linuxcoro/bcv_scraper`.
+
+> El PAT viaja dentro del APK y es extraíble. No publiques la app en Play
+> Store con ese token: antes de publicarla, deja el JSON público o usa un
+> intermediario que guarde el token en el servidor.
 
 ## 2. Servidor con HTML + API
 
@@ -163,11 +180,10 @@ extracción de USD/EUR, fecha valor y el contexto de la plantilla.
 La app muestra dos tarjetas, **dólar (USD)** y **euro (EUR)**, y un botón
 **Actualizar**. Al cargar y al pulsar el botón:
 
-1. Descarga `tasas.json` desde GitHub:
-   <https://raw.githubusercontent.com/linuxcoro/finanbcv/main/tasas.json>
-   (con `?t=…` para evitar la caché).
-2. Si no hay red o la descarga falla, usa las últimas tasas guardadas en
-   `localStorage` (`finanbcv_tasas`).
+1. Consulta `tasas.json` por la API de GitHub (repo privado
+   `linuxcoro/bcv_scraper`) con el PAT de solo lectura inyectado en el APK.
+2. Si no hay red, no hay token o la descarga falla, usa las últimas tasas
+   guardadas en `localStorage` (`finanbcv_tasas`).
 
 El workflow horario mantiene ese archivo al día, así que la app no necesita
 servidor local ni que se regenere `tasas.json` a mano para actualizarse.

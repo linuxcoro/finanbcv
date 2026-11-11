@@ -467,9 +467,21 @@
 
         // --- MÓDULO TASAS BCV ---
         const RATES_STORAGE_KEY = 'finanbcv_tasas';
-        // Fuente remota de las tasas: el workflow de GitHub Actions
-        // regenera este tasas.json en el repositorio cada hora.
-        const RATES_URL = 'https://raw.githubusercontent.com/linuxcoro/bcv_scraper/main/tasas.json';
+        // Fuente remota: API de contenidos del repo privado bcv_scraper. El
+        // workflow de GitHub Actions regenera tasas.json cada hora. No se usa
+        // el token automático de GitHub: ese nombre está reservado, el token
+        // solo accede al repo donde corre el workflow y caduca al terminar el
+        // job. El PAT fine-grained de solo lectura se inyecta al compilar el
+        // APK (secreto BCV_TASAS_PAT); en el repositorio queda solo el marcador.
+        const RATES_URL = 'https://api.github.com/repos/linuxcoro/bcv_scraper/contents/tasas.json?ref=main';
+        const RATES_TOKEN = '__RATES_PAT__';
+
+        function tokenRatesConfigurado() {
+            return typeof RATES_TOKEN === 'string'
+                && RATES_TOKEN.length > 20
+                && !RATES_TOKEN.startsWith('__');
+        }
+
         let lastRates = null;
         let lastAutoRate = null;
         let ratesRefreshing = false;
@@ -596,11 +608,18 @@
         }
 
         async function leerTasasJson() {
-            // Lee el tasas.json publicado en GitHub. El parámetro t evita
-            // que el navegador (o el CDN de GitHub) devuelva una copia vieja.
-            const respuesta = await fetch(`${RATES_URL}?t=${Date.now()}`, {
+            // Lee tasas.json por la API de GitHub. El repositorio es privado,
+            // así que la petición lleva el PAT de solo lectura. Sin token no
+            // se llama a la API: la app usa las tasas guardadas.
+            if (!tokenRatesConfigurado()) {
+                throw new Error('token de GitHub no configurado');
+            }
+            const respuesta = await fetch(RATES_URL, {
                 cache: 'no-store',
-                headers: { 'Accept': 'application/json' }
+                headers: {
+                    'Accept': 'application/vnd.github.raw',
+                    'Authorization': `Bearer ${RATES_TOKEN}`
+                }
             });
             if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
             return normalizarRates(await respuesta.json());

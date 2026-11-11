@@ -345,3 +345,13 @@ Prerrequisitos: cuenta de GitHub y autenticación. No hay `gh` instalado; la rut
 - Verificado con `node --check` sobre los scripts inline y una prueba headless en Chrome con 58 comprobaciones PASS: selección USD→EUR→USD, etiquetas/prefijo/resultados, tasa manual, alta de crédito EUR y USD, historial y Pago Móvil en `€`, crédito heredado sin `currency`, respaldo y persistencia entre recargas (la moneda EUR vuelve y autocompleta la tasa correcta).
 - Captura móvil (430 px) revisada visualmente en modo EUR: formulario, resultado `€150,00`, tarjeta EUR con `Bs/€` y tarjeta heredada en `$`.
 - Documentación actualizada en `documentaci_n_de_la_aplicaci_n.md` (características, guía de uso, esquema JSON y `localStorage`) y `README_tasas.md`.
+
+## 15. Mejora posterior — Lectura autorizada de tasas (repo privado)
+
+**Estado:** ✅ hecho.
+
+- `index.html` ya no descarga el raw: consulta la API de contenidos de GitHub con un PAT de solo lectura (`Accept: application/vnd.github.raw` + `Authorization`). El token no está en el repo: se inyecta al compilar el APK desde el secreto `BCV_TASAS_PAT` mediante `scripts/inject-rates-token.mjs`.
+- Los workflows `build-apk.yml` y `build-release.yml` ejecutan la inyección antes de `cap sync`; `www/` sigue ignorado por git. Sin token (web desde el repo o `file://`), la app usa las últimas tasas de `localStorage`.
+- Advertencia: el PAT es extraíble del APK; no publicar en Play Store con ese token. Antes de publicar, dejar el JSON público o usar un intermediario.
+- Validación: `index.html` no lee `$GITHUB_TOKEN` ni variables de entorno; la cadena real es `BCV_TASAS_PAT` → inyección en `www/index.html` → `assets/public/index.html` del APK. Los workflows ahora fallan si el marcador `__RATES_PAT__` sobrevive en la copia compilada o en el APK/AAB.
+- Documentación actualizada en `README_tasas.md` y `documentaci_n_de_la_aplicaci_n.md`.
